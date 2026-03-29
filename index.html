@@ -591,18 +591,6 @@
       gap: 12px;
     }
     .disclaimer span { flex: 1; line-height: 1.5; }
-    .disclaimer button {
-      background: none;
-      border: 1px solid #554400;
-      border-radius: 4px;
-      color: #c8a800;
-      cursor: pointer;
-      font-size: 11px;
-      padding: 2px 8px;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-    .disclaimer button:hover { background: #332200; }
 
     /* ── Mobile ── */
     @media (max-width: 520px) {
@@ -617,11 +605,6 @@
   </style>
 </head>
 <body>
-
-<div class="disclaimer" id="disclaimer">
-  <span>⚠ <strong>FOR FLIGHT SIMULATION &amp; INFORMATIONAL USE ONLY.</strong> Not certified for real-world navigation or flight planning. Always use official sources (ATIS, NOTAMs, ATC) for actual operations. Weather data may be delayed.</span>
-  <button onclick="document.getElementById('disclaimer').style.display='none'">Dismiss</button>
-</div>
 
 <header>
   <div class="header-logo">
@@ -656,18 +639,22 @@
   </button>
 </header>
 
+<div class="disclaimer">
+  <span>⚠ <strong>FOR INFORMATIONAL USE ONLY</strong> — Not certified for real-world navigation or flight planning. Always consult official sources (ATIS, NOTAMs, ATC) for actual flight operations. Weather data may be delayed.</span>
+</div>
+
 <div class="main">
   <div class="suggestions">
     <span class="suggestion-label">QUICK ADD:</span>
-    <button class="suggestion-chip" onclick="quickAdd('KJFK')">KJFK</button>
-    <button class="suggestion-chip" onclick="quickAdd('KLAX')">KLAX</button>
-    <button class="suggestion-chip" onclick="quickAdd('KORD')">KORD</button>
-    <button class="suggestion-chip" onclick="quickAdd('KSFO')">KSFO</button>
-    <button class="suggestion-chip" onclick="quickAdd('KDEN')">KDEN</button>
-    <button class="suggestion-chip" onclick="quickAdd('KATL')">KATL</button>
-    <button class="suggestion-chip" onclick="quickAdd('KBOS')">KBOS</button>
-    <button class="suggestion-chip" onclick="quickAdd('KMIA')">KMIA</button>
-    <button class="suggestion-chip" onclick="quickAdd('KPAO')">KPAO</button>
+    <button class="suggestion-chip" onclick="quickAdd('KPAO')">KPAO · Palo Alto</button>
+    <button class="suggestion-chip" onclick="quickAdd('KSQL')">KSQL · San Carlos</button>
+    <button class="suggestion-chip" onclick="quickAdd('KHAF')">KHAF · Half Moon Bay</button>
+    <button class="suggestion-chip" onclick="quickAdd('KRHV')">KRHV · Reid-Hillview</button>
+    <button class="suggestion-chip" onclick="quickAdd('KLVK')">KLVK · Livermore</button>
+    <button class="suggestion-chip" onclick="quickAdd('KNUQ')">KNUQ · Moffett</button>
+    <button class="suggestion-chip" onclick="quickAdd('KCCR')">KCCR · Concord</button>
+    <button class="suggestion-chip" onclick="quickAdd('KAPC')">KAPC · Napa</button>
+    <button class="suggestion-chip" onclick="quickAdd('KSFO')">KSFO · SFO</button>
   </div>
 
   <div id="cardsGrid" class="cards-grid"></div>
