@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ATIS Viewer</title>
+  <style>
+    :root {
+      --bg: #070c18;
+      --surface: #0d1525;
+      --surface-2: #131e30;
+      --border: #1e2d45;
+      --accent: #00b4d8;
+      --accent-dim: #0077a8;
+      --text: #ccd6f6;
+      --text-dim: #8892b0;
+      --green: #64ffda;
+      --amber: #ffb347;
+      --red: #ff6b6b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      flex-wrap: wrap;
+    }
+
+    .header-logo {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      min-width: 200px;
+      max-width: 380px;
+    }
+
+    .search-bar input {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-bar input:focus { border-color: var(--accent); }
+    .search-bar input.error { border-color: var(--red); }
+
+    .search-bar input::placeholder {
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+      letter-spacing: 1px;
+    }
+
+    .btn:hover { opacity: 0.85; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      letter-spacing: 1px;
+    }
+
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .main {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .suggestions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .suggestion-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      align-self: center;
+      letter-spacing: 1px;
+    }
+
+    .suggestion-chip {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+
+    .suggestion-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .icon { font-size: 52px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 17px; margin-bottom: 8px; color: var(--text); letter-spacing: 1px; }
+    .empty-state p { font-size: 13px; line-height: 1.8; }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: var(--accent-dim); }
+
+    .card-header {
+      background: var(--surface-2);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .airport-id {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 3px;
+    }
+
+    .airport-name {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    .card-actions { display: flex; gap: 6px; align-items: center; }
+
+    .refresh-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+    }
+
+    .refresh-btn:hover { color: var(--accent); }
+    .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 5px 7px;
+      font-size: 15px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+
+    .remove-btn:hover { color: var(--red); }
+
+    .card-body { padding: 18px; }
+
+    /* ATIS identifier block */
+    .atis-identifier {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .atis-letter-box {
+      width: 66px;
+      height: 66px;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 180, 216, 0.08);
+      box-shadow: 0 0 24px rgba(0, 180, 216, 0.15), inset 0 0 12px rgba(0, 180, 216, 0.05);
+      flex-shrink: 0;
+    }
+
+    .atis-letter {
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .atis-meta { display: flex; flex-direction: column; gap: 5px; }
+
+    .atis-time {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 2px;
+    }
+
+    .atis-type {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    /* Data sections */
+    .data-section { margin-bottom: 16px; }
+
+    .data-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 7px;
+    }
+
+    .wind-display { display: flex; align-items: center; gap: 12px; }
+
+    .compass { width: 46px; height: 46px; flex-shrink: 0; }
+    .compass svg { width: 100%; height: 100%; }
+
+    .wind-text { display: flex; flex-direction: column; gap: 3px; }
+
+    .wind-main {
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 1px;
+    }
+
+    .wind-gust { font-size: 12px; color: var(--amber); letter-spacing: 1px; }
+
+    .altimeter-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 2px;
+    }
+
+    .runway-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .runway-tag {
+      background: rgba(100, 255, 218, 0.1);
+      border: 1px solid rgba(100, 255, 218, 0.35);
+      color: var(--green);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .runway-tag.dep {
+      background: rgba(255, 179, 71, 0.1);
+      border-color: rgba(255, 179, 71, 0.35);
+      color: var(--amber);
+    }
+
+    .runway-tag.combined {
+      background: rgba(0, 180, 216, 0.1);
+      border-color: rgba(0, 180, 216, 0.35);
+      color: var(--accent);
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    .loading {
+      padding: 36px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+
+    .loading-dot {
+      display: inline-block;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .error-msg {
+      padding: 18px 16px;
+      color: var(--red);
+      font-size: 13px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .no-datis-banner {
+      background: rgba(255, 107, 107, 0.06);
+      border: 1px solid rgba(255, 107, 107, 0.2);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #ff9a9a;
+      margin-bottom: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .card-footer {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-datis {
+      background: rgba(100, 255, 218, 0.1);
+      border: 1px solid rgba(100, 255, 218, 0.25);
+      color: var(--green);
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .badge-metar {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 520px) {
+      header { gap: 10px; }
+      .header-logo .label { display: none; }
+      .search-bar { max-width: none; }
+      .btn-ghost .label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2h-1A1.5 1.5 0 0 0 9 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L12 19v-5.5L21 16z"/>
+    </svg>
+    <span class="label">ATIS VIEWER</span>
+  </div>
+
+  <div class="search-bar">
+    <input
+      type="text"
+      id="airportInput"
+      placeholder="ICAO code (e.g. KJFK)"
+      maxlength="4"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="characters"
+      spellcheck="false"
+    />
+    <button class="btn" onclick="addAirport()">ADD</button>
+  </div>
+
+  <button class="btn-ghost" onclick="refreshAll()">
+    <svg style="display:inline;width:13px;height:13px;vertical-align:middle;margin-right:4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polyline points="1 4 1 10 7 10"></polyline>
+      <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+    </svg>
+    <span class="label">Refresh All</span>
+  </button>
+</header>
+
+<div class="main">
+  <div class="suggestions">
+    <span class="suggestion-label">QUICK ADD:</span>
+    <button class="suggestion-chip" onclick="quickAdd('KJFK')">KJFK</button>
+    <button class="suggestion-chip" onclick="quickAdd('KLAX')">KLAX</button>
+    <button class="suggestion-chip" onclick="quickAdd('KORD')">KORD</button>
+    <button class="suggestion-chip" onclick="quickAdd('KSFO')">KSFO</button>
+    <button class="suggestion-chip" onclick="quickAdd('KDEN')">KDEN</button>
+    <button class="suggestion-chip" onclick="quickAdd('KATL')">KATL</button>
+    <button class="suggestion-chip" onclick="quickAdd('KBOS')">KBOS</button>
+    <button class="suggestion-chip" onclick="quickAdd('KMIA')">KMIA</button>
+  </div>
+
+  <div id="cardsGrid" class="cards-grid"></div>
+  <div id="emptyState" class="empty-state" style="display:none">
+    <div class="icon">✈</div>
+    <h3>NO AIRPORTS ADDED</h3>
+    <p>Enter an ICAO code above or tap a quick-add chip.<br>D-ATIS data is sourced from datis.clowd.io.<br>METAR fallback via aviationweather.gov.</p>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+
+let airports = JSON.parse(localStorage.getItem('atis-airports') || '[]');
+const cache = {}; // icao → { loading, error, data, lastFetched }
+
+// ─── Airport names ────────────────────────────────────────────────────────────
+
+const NAMES = {
+  KJFK:'John F. Kennedy', KLAX:'Los Angeles Intl', KORD:"O'Hare Intl",
+  KATL:'Hartsfield-Jackson', KDFW:'Dallas/Fort Worth', KDEN:'Denver Intl',
+  KSFO:'San Francisco Intl', KLAS:'Harry Reid Intl', KPHX:'Phoenix Sky Harbor',
+  KMIA:'Miami Intl', KSEA:'Seattle-Tacoma Intl', KBOS:'Logan Intl',
+  KEWR:'Newark Liberty', KLGA:'LaGuardia', KIAD:'Dulles Intl',
+  KBWI:'Baltimore/Washington', KPHL:'Philadelphia Intl', KMSP:'Minneapolis-St Paul',
+  KDTW:'Detroit Metro Wayne', KMDW:'Chicago Midway', KSLC:'Salt Lake City Intl',
+  KPDX:'Portland Intl', KSAN:'San Diego Intl', KFLL:'Fort Lauderdale Intl',
+  KMCO:'Orlando Intl', KTPA:'Tampa Intl', KIAH:'George Bush Intercontinental',
+  KHOU:'William P. Hobby', KSTL:'St. Louis Lambert', KMEM:'Memphis Intl',
+  EGLL:'London Heathrow', EGKK:'London Gatwick', EGCC:'Manchester',
+  LFPG:'Paris CDG', EDDF:'Frankfurt Intl', EHAM:'Amsterdam Schiphol',
+  OMDB:'Dubai Intl', RJTT:'Tokyo Haneda', YSSY:'Sydney Kingsford Smith',
+  CYVR:'Vancouver Intl', CYYZ:'Toronto Pearson', CYUL:'Montreal Trudeau',
+};
+
+// ─── Parsers ──────────────────────────────────────────────────────────────────
+
+function parseWind(text) {
+  const m = text.match(/WIND\s+(\d{3})\/(\d{2,3})(?:G(\d{2,3}))?KT/i);
+  if (m) return { dir: m[1], spd: parseInt(m[2]), gust: m[3] ? parseInt(m[3]) : null };
+  if (/WIND\s+CALM/i.test(text)) return { dir: null, spd: 0, gust: null };
+  const vrb = text.match(/WIND\s+VRB(\d{2,3})KT/i);
+  if (vrb) return { dir: 'VRB', spd: parseInt(vrb[1]), gust: null };
+  return null;
+}
+
+function parseAltimeter(text) {
+  const m = text.match(/ALTIMETER\s+(\d{4})/i);
+  if (m) return m[1].slice(0,2) + '.' + m[1].slice(2);
+  const a = text.match(/\bA(\d{4})\b/);
+  if (a) return a[1].slice(0,2) + '.' + a[1].slice(2);
+  return null;
+}
+
+function parseRunways(text) {
+  const arr = new Set();
+  const dep = new Set();
+
+  // "LANDING AND DEPARTING RWY XX"
+  const ld = text.match(/LANDING\s+AND\s+DEPARTING\s+(?:RWY\s+)?(\d{1,2}[LRC]?)/i);
+  if (ld) { arr.add(ld[1]); dep.add(ld[1]); return { arr:[...arr], dep:[...dep] }; }
+
+  // Approach runways: look for instrument approach types followed by RWY numbers before APCH
+  const apchRegex = /(?:ILS|RNAV|VOR|LDA|LOC|GPS|VISUAL|CONTACT|VCTR\s+FOR|SIMUL)[^.]*?(?:RWY\s+)?(\d{1,2}[LRC]?)(?:\s+AND\s+(?:RWY\s+)?(\d{1,2}[LRC]?))?[^.]*?(?:APCH|APPROACH|IN\s+USE)/gi;
+  let m;
+  while ((m = apchRegex.exec(text)) !== null) {
+    arr.add(m[1]);
+    if (m[2]) arr.add(m[2]);
+  }
+
+  // Departure runways
+  const deptRegex = /DEP[TARTS]*\s+(?:EXP\s+)?(?:RWY\s+)?(\d{1,2}[LRC]?)(?:\s+AND\s+(?:RWY\s+)?(\d{1,2}[LRC]?))?/gi;
+  while ((m = deptRegex.exec(text)) !== null) {
+    dep.add(m[1]);
+    if (m[2]) dep.add(m[2]);
+  }
+
+  // "RWY XX IN USE" catch-all
+  const inUse = /(?:RWY\s+)?(\d{1,2}[LRC]?)\s+IN\s+USE/gi;
+  while ((m = inUse.exec(text)) !== null) {
+    arr.add(m[1]); dep.add(m[1]);
+  }
+
+  return { arr:[...arr], dep:[...dep] };
+}
+
+function parseTime(text) {
+  const m = text.match(/\b(\d{4})Z\b/);
+  return m ? m[1]+'Z' : null;
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+
+async function fetchDatis(icao) {
+  const res = await fetch(`https://datis.clowd.io/api/${icao}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0) throw new Error('No D-ATIS');
+  return data;
+}
+
+async function fetchMetar(icao) {
+  const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${icao}&format=json`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0) throw new Error('No METAR');
+  return data[0];
+}
+
+async function loadAirport(icao, force = false) {
+  icao = icao.toUpperCase();
+  if (cache[icao]?.loading) return;
+
+  cache[icao] = { loading: true, error: null, data: null, lastFetched: null };
+  renderCards();
+
+  try {
+    let result;
+    try {
+      const datisArr = await fetchDatis(icao);
+      result = {
+        icao,
+        hasDatis: true,
+        entries: datisArr.map(d => ({
+          code: (d.code || '?').toUpperCase(),
+          type: d.type || '',
+          wind: parseWind(d.datis),
+          altimeter: parseAltimeter(d.datis),
+          runways: parseRunways(d.datis),
+          time: parseTime(d.datis),
+        })),
+      };
+    } catch (_) {
+      // Fallback to METAR
+      const m = await fetchMetar(icao);
+      result = {
+        icao,
+        hasDatis: false,
+        metar: {
+          wind: m.wdir !== undefined ? {
+            dir: m.wdir === 'VRB' ? 'VRB' : String(m.wdir).padStart(3, '0'),
+            spd: m.wspd ?? 0,
+            gust: m.wgst || null,
+          } : null,
+          altimeter: m.altim ? (m.altim / 100).toFixed(2) : null,
+        },
+      };
+    }
+
+    cache[icao] = { loading: false, error: null, data: result, lastFetched: new Date() };
+  } catch (err) {
+    cache[icao] = { loading: false, error: 'No data found for ' + icao, data: null, lastFetched: new Date() };
+  }
+
+  renderCards();
+}
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
+
+function compassSvg(dir) {
+  const deg = parseInt(dir);
+  if (isNaN(deg)) return '';
+  return `
+    <div class="compass">
+      <svg viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="23" cy="23" r="20" fill="rgba(0,180,216,0.07)" stroke="rgba(0,180,216,0.25)" stroke-width="1.5"/>
+        <text x="23" y="9" text-anchor="middle" fill="rgba(0,180,216,0.6)" font-size="6.5" font-family="monospace" font-weight="bold">N</text>
+        <text x="23" y="42" text-anchor="middle" fill="rgba(0,180,216,0.3)" font-size="5.5" font-family="monospace">S</text>
+        <text x="7"  y="26" text-anchor="middle" fill="rgba(0,180,216,0.3)" font-size="5.5" font-family="monospace">W</text>
+        <text x="39" y="26" text-anchor="middle" fill="rgba(0,180,216,0.3)" font-size="5.5" font-family="monospace">E</text>
+        <g transform="rotate(${deg},23,23)">
+          <polygon points="23,6 26,20 23,17 20,20" fill="#00b4d8"/>
+          <polygon points="23,40 26,26 23,29 20,26" fill="rgba(0,180,216,0.25)"/>
+        </g>
+      </svg>
+    </div>`;
+}
+
+function windHtml(wind) {
+  if (!wind) return `<span style="color:var(--text-dim)">N/A</span>`;
+  const compass = (wind.dir && wind.dir !== 'VRB') ? compassSvg(wind.dir) : '';
+  const dirStr = wind.dir === null ? 'CALM' : wind.dir === 'VRB' ? 'VRB' : `${wind.dir}°`;
+  const spdStr = wind.dir === null ? '' : ` @ ${wind.spd}KT`;
+  const gustHtml = wind.gust ? `<span class="wind-gust">⚡ GUSTS ${wind.gust}KT</span>` : '';
+  return `
+    <div class="wind-display">
+      ${compass}
+      <div class="wind-text">
+        <span class="wind-main">${dirStr}${spdStr}</span>
+        ${gustHtml}
+      </div>
+    </div>`;
+}
+
+function runwayHtml(runways) {
+  const { arr, dep } = runways;
+  if (!arr.length && !dep.length) return `<span style="color:var(--text-dim);font-size:13px">See raw ATIS</span>`;
+
+  const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
+  if (isCombined) {
+    return `<div class="runway-tags">${arr.map(r => `<span class="runway-tag combined">${r}</span>`).join('')}</div>`;
+  }
+
+  let html = '';
+  if (arr.length) {
+    html += `<div class="data-label" style="margin-bottom:6px">Arrivals</div>
+             <div class="runway-tags" style="margin-bottom:10px">${arr.map(r => `<span class="runway-tag">${r}</span>`).join('')}</div>`;
+  }
+  if (dep.length) {
+    html += `<div class="data-label" style="margin-bottom:6px">Departures</div>
+             <div class="runway-tags">${dep.map(r => `<span class="runway-tag dep">${r}</span>`).join('')}</div>`;
+  }
+  return html;
+}
+
+function entryHtml(entry) {
+  const { arr, dep } = entry.runways;
+  const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
+  const runwayLabel = isCombined ? 'Runway In Use' : '';
+
+  return `
+    <div class="atis-identifier">
+      <div class="atis-letter-box">
+        <span class="atis-letter">${entry.code}</span>
+      </div>
+      <div class="atis-meta">
+        ${entry.time ? `<span class="atis-time">${entry.time}</span>` : ''}
+        ${entry.type ? `<span class="atis-type">${entry.type.toUpperCase()}</span>` : ''}
+      </div>
+    </div>
+
+    <div class="data-section">
+      <div class="data-label">Wind</div>
+      ${windHtml(entry.wind)}
+    </div>
+
+    <div class="data-section">
+      <div class="data-label">Altimeter</div>
+      <span class="altimeter-value">A${entry.altimeter || 'N/A'}</span>
+    </div>
+
+    <div class="data-section">
+      ${runwayLabel ? `<div class="data-label">${runwayLabel}</div>` : ''}
+      ${runwayHtml(entry.runways)}
+    </div>`;
+}
+
+function renderCard(icao) {
+  const c = cache[icao] || {};
+  const name = NAMES[icao] || '';
+  const timeStr = c.lastFetched
+    ? c.lastFetched.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  let body = '';
+  if (c.loading) {
+    body = `<div class="loading">
+      <span class="loading-dot">●</span>
+      <span class="loading-dot">●</span>
+      <span class="loading-dot">●</span>
+    </div>`;
+  } else if (c.error) {
+    body = `<div class="error-msg">⚠ ${c.error}</div>`;
+  } else if (c.data) {
+    const d = c.data;
+    if (!d.hasDatis && d.metar) {
+      body = `
+        <div class="no-datis-banner">No D-ATIS — showing METAR data · Runway in use unavailable</div>
+        <div class="data-section">
+          <div class="data-label">Wind (METAR)</div>
+          ${windHtml(d.metar.wind)}
+        </div>
+        <div class="data-section">
+          <div class="data-label">Altimeter (METAR)</div>
+          <span class="altimeter-value">A${d.metar.altimeter || 'N/A'}</span>
+        </div>`;
+    } else {
+      body = d.entries.map((e, i) =>
+        (i > 0 ? '<hr class="divider">' : '') + entryHtml(e)
+      ).join('');
+    }
+  }
+
+  const badge = c.data
+    ? (c.data.hasDatis
+        ? `<span class="badge-datis">D-ATIS</span>`
+        : `<span class="badge-metar">METAR</span>`)
+    : '';
+
+  return `
+    <div class="card" id="card-${icao}">
+      <div class="card-header">
+        <div>
+          <div class="airport-id">${icao}</div>
+          ${name ? `<div class="airport-name">${name}</div>` : ''}
+        </div>
+        <div class="card-actions">
+          <button class="refresh-btn ${c.loading ? 'spinning' : ''}" onclick="loadAirport('${icao}', true)" title="Refresh">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="1 4 1 10 7 10"></polyline>
+              <path d="M3.51 15a9 9 0 1 0 .49-4.5"></path>
+            </svg>
+          </button>
+          <button class="remove-btn" onclick="removeAirport('${icao}')" title="Remove">✕</button>
+        </div>
+      </div>
+
+      <div class="card-body">${body}</div>
+
+      ${timeStr ? `
+        <div class="card-footer">
+          <span>Updated ${timeStr}</span>
+          ${badge}
+        </div>` : ''}
+    </div>`;
+}
+
+function renderCards() {
+  const grid = document.getElementById('cardsGrid');
+  const empty = document.getElementById('emptyState');
+
+  if (airports.length === 0) {
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
+  grid.innerHTML = airports.map(renderCard).join('');
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+
+function addAirport(icao) {
+  const input = document.getElementById('airportInput');
+  icao = (icao || input.value).trim().toUpperCase();
+
+  if (!icao || icao.length < 3 || icao.length > 4 || !/^[A-Z0-9]+$/.test(icao)) {
+    input.classList.add('error');
+    setTimeout(() => input.classList.remove('error'), 800);
+    return;
+  }
+
+  if (!airports.includes(icao)) {
+    airports.push(icao);
+    saveAirports();
+    loadAirport(icao);
+  }
+
+  input.value = '';
+}
+
+function quickAdd(icao) {
+  if (!airports.includes(icao)) {
+    airports.push(icao);
+    saveAirports();
+    loadAirport(icao);
+  }
+}
+
+function removeAirport(icao) {
+  airports = airports.filter(a => a !== icao);
+  delete cache[icao];
+  saveAirports();
+  renderCards();
+}
+
+function refreshAll() {
+  airports.forEach(icao => loadAirport(icao, true));
+}
+
+function saveAirports() {
+  localStorage.setItem('atis-airports', JSON.stringify(airports));
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+document.getElementById('airportInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addAirport();
+});
+
+renderCards();
+airports.forEach(icao => loadAirport(icao));
+
+// Auto-refresh every 10 minutes
+setInterval(refreshAll, 10 * 60 * 1000);
+</script>
+</body>
+</html>
