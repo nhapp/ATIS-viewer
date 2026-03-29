@@ -604,9 +604,11 @@ async function loadAirport(icao, force = false) {
           time: parseTime(d.datis),
         })),
       };
-    } catch (_) {
+
+          } catch (datisErr) {
       // Fallback to METAR
       const m = await fetchMetar(icao);
+
       result = {
         icao,
         hasDatis: false,
@@ -623,7 +625,7 @@ async function loadAirport(icao, force = false) {
 
     cache[icao] = { loading: false, error: null, data: result, lastFetched: new Date() };
   } catch (err) {
-    cache[icao] = { loading: false, error: 'No data found for ' + icao, data: null, lastFetched: new Date() };
+   cache[icao] = { loading: false, error: err.message, data: null, lastFetched: new Date() };
   }
 
   renderCards();
