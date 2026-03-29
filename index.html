@@ -57,20 +57,23 @@
       gap: 8px;
       flex: 1;
       min-width: 200px;
-      max-width: 380px;
+      max-width: 420px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
     }
 
     .search-bar input {
-      flex: 1;
+      width: 100%;
       background: var(--surface-2);
       border: 1px solid var(--border);
       color: var(--text);
       padding: 9px 12px;
       border-radius: 6px;
       font-family: inherit;
-      font-size: 15px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
+      font-size: 13px;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -79,10 +82,57 @@
     .search-bar input.error { border-color: var(--red); }
 
     .search-bar input::placeholder {
-      text-transform: none;
-      letter-spacing: 0;
       color: var(--text-dim);
       font-size: 13px;
+    }
+
+    .search-dropdown {
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      z-index: 200;
+      max-height: 260px;
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .search-dropdown.visible { display: block; }
+
+    .dd-item {
+      padding: 9px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.15s;
+    }
+
+    .dd-item:last-child { border-bottom: none; }
+    .dd-item:hover, .dd-item.active { background: var(--surface-2); }
+
+    .dd-icao {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 2px;
+      min-width: 46px;
+    }
+
+    .dd-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .dd-name { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dd-city { font-size: 11px; color: var(--text-dim); }
+
+    .airport-city {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 1px;
+      letter-spacing: 0.5px;
     }
 
     .btn {
@@ -409,6 +459,24 @@
       letter-spacing: 1px;
     }
 
+    .card[draggable="true"] { cursor: grab; }
+    .card[draggable="true"]:active { cursor: grabbing; }
+    .card.dragging { opacity: 0.35; }
+    .card.drag-over { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+    .liveatc-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    .liveatc-btn:hover { color: var(--amber); }
+
     .badge-metar {
       background: var(--surface-2);
       border: 1px solid var(--border);
@@ -420,15 +488,140 @@
       letter-spacing: 1px;
     }
 
+    .flight-cat {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 3px;
+    }
+    .flight-cat.VFR  { background: #1a7a4a; border: 1px solid #2da866; color: #fff; }
+    .flight-cat.MVFR { background: #1a4a8a; border: 1px solid #2d6abf; color: #fff; }
+    .flight-cat.IFR  { background: #8a1a1a; border: 1px solid #bf2d2d; color: #fff; }
+    .flight-cat.LIFR { background: #8a1a5a; border: 1px solid #c44d8a; color: #fff; }
+
+    .metar-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .metar-cell { display: flex; flex-direction: column; gap: 4px; }
+
+    .metar-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 1px;
+    }
+
+    .sky-layers { display: flex; flex-direction: column; gap: 4px; }
+
+    .sky-layer {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.5px;
+    }
+
+    .info-table {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .info-row {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info-row:last-child { border-bottom: none; }
+
+    .info-cell {
+      flex: 1;
+      padding: 10px 14px;
+      border-right: 1px solid var(--border);
+      min-width: 0;
+    }
+
+    .info-cell:last-child { border-right: none; }
+    .info-cell.full { flex: none; width: 100%; border-right: none; }
+
+    .atis-time-local {
+      font-size: 13px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    .raw-text-block {
+      margin-top: 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.7;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .raw-text-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    /* ── Disclaimer banner ── */
+    .disclaimer {
+      background: #1a1200;
+      border-bottom: 1px solid #554400;
+      color: #c8a800;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      padding: 7px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .disclaimer span { flex: 1; line-height: 1.5; }
+    .disclaimer button {
+      background: none;
+      border: 1px solid #554400;
+      border-radius: 4px;
+      color: #c8a800;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 2px 8px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .disclaimer button:hover { background: #332200; }
+
+    /* ── Mobile ── */
     @media (max-width: 520px) {
       header { gap: 10px; }
       .header-logo .label { display: none; }
       .search-bar { max-width: none; }
       .btn-ghost .label { display: none; }
+      .cards-grid { grid-template-columns: 1fr; }
+      /* Stack runway viz and airport layout vertically on small screens */
+      .rwy-pair { flex-wrap: wrap !important; }
     }
   </style>
 </head>
 <body>
+
+<div class="disclaimer" id="disclaimer">
+  <span>⚠ <strong>FOR FLIGHT SIMULATION &amp; INFORMATIONAL USE ONLY.</strong> Not certified for real-world navigation or flight planning. Always use official sources (ATIS, NOTAMs, ATC) for actual operations. Weather data may be delayed.</span>
+  <button onclick="document.getElementById('disclaimer').style.display='none'">Dismiss</button>
+</div>
 
 <header>
   <div class="header-logo">
@@ -439,16 +632,18 @@
   </div>
 
   <div class="search-bar">
-    <input
-      type="text"
-      id="airportInput"
-      placeholder="ICAO code (e.g. KJFK)"
-      maxlength="4"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="characters"
-      spellcheck="false"
-    />
+    <div class="search-wrapper">
+      <input
+        type="text"
+        id="airportInput"
+        placeholder="Airport name, city, or ICAO/IATA"
+        maxlength="40"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      />
+      <div class="search-dropdown" id="searchDropdown"></div>
+    </div>
     <button class="btn" onclick="addAirport()">ADD</button>
   </div>
 
@@ -472,6 +667,7 @@
     <button class="suggestion-chip" onclick="quickAdd('KATL')">KATL</button>
     <button class="suggestion-chip" onclick="quickAdd('KBOS')">KBOS</button>
     <button class="suggestion-chip" onclick="quickAdd('KMIA')">KMIA</button>
+    <button class="suggestion-chip" onclick="quickAdd('KPAO')">KPAO</button>
   </div>
 
   <div id="cardsGrid" class="cards-grid"></div>
@@ -487,34 +683,551 @@
 
 let airports = JSON.parse(localStorage.getItem('atis-airports') || '[]');
 const cache = {}; // icao → { loading, error, data, lastFetched }
+let draggedIcao = null;
 
-// ─── Airport names ────────────────────────────────────────────────────────────
+// ─── Runway data (headings in degrees) ───────────────────────────────────────
 
-const NAMES = {
-  KJFK:'John F. Kennedy', KLAX:'Los Angeles Intl', KORD:"O'Hare Intl",
-  KATL:'Hartsfield-Jackson', KDFW:'Dallas/Fort Worth', KDEN:'Denver Intl',
-  KSFO:'San Francisco Intl', KLAS:'Harry Reid Intl', KPHX:'Phoenix Sky Harbor',
-  KMIA:'Miami Intl', KSEA:'Seattle-Tacoma Intl', KBOS:'Logan Intl',
-  KEWR:'Newark Liberty', KLGA:'LaGuardia', KIAD:'Dulles Intl',
-  KBWI:'Baltimore/Washington', KPHL:'Philadelphia Intl', KMSP:'Minneapolis-St Paul',
-  KDTW:'Detroit Metro Wayne', KMDW:'Chicago Midway', KSLC:'Salt Lake City Intl',
-  KPDX:'Portland Intl', KSAN:'San Diego Intl', KFLL:'Fort Lauderdale Intl',
-  KMCO:'Orlando Intl', KTPA:'Tampa Intl', KIAH:'George Bush Intercontinental',
-  KHOU:'William P. Hobby', KSTL:'St. Louis Lambert', KMEM:'Memphis Intl',
-  EGLL:'London Heathrow', EGKK:'London Gatwick', EGCC:'Manchester',
-  LFPG:'Paris CDG', EDDF:'Frankfurt Intl', EHAM:'Amsterdam Schiphol',
-  OMDB:'Dubai Intl', RJTT:'Tokyo Haneda', YSSY:'Sydney Kingsford Smith',
-  CYVR:'Vancouver Intl', CYYZ:'Toronto Pearson', CYUL:'Montreal Trudeau',
+const RUNWAY_DATA = {
+  // Bay Area
+  KPAO:[130,310], KSFO:[10,100,190,280], KOAK:[100,280], KSJC:[120,300],
+  KSQL:[120,300], KNUQ:[140,320], KRHV:[130,310], KLVK:[70,250],
+  KCCR:[20,200], KHAF:[120,300], KAPC:[60,240,180,360], KSTS:[140,320,20,200],
+  KWVI:[20,200,80,260], KMRY:[100,280], KSCK:[110,290], KMOD:[100,280],
+  KFAT:[120,300], KSMF:[110,290,160,340], KSBA:[70,250], KSBP:[120,300],
+  // Pacific NW
+  KSEA:[160,340], KBFI:[130,310], KPAE:[160,340], KPDX:[100,280,30,210],
+  KGEG:[20,200,70,250], KEUG:[160,340], KMFR:[50,230,140,320],
+  // Southern CA
+  KLAX:[60,70,240,250], KVNY:[160,340], KBUR:[150,330], KLGB:[120,300],
+  KSNA:[200,20], KONT:[70,250], KPSP:[130,310], KSAN:[270,90], KSMO:[210,30],
+  // Nevada / Arizona
+  KLAS:[70,190,250,10], KRNO:[160,340,70,250], KPHX:[80,260], KTUS:[110,290,30,210],
+  KSDL:[210,30],
+  // Mountain
+  KDEN:[70,160,250,340], KCOS:[120,300], KSLC:[160,340], KBOI:[100,280,30,210],
+  KBZN:[120,300],
+  // Northeast
+  KJFK:[40,130,220,310], KLGA:[40,130,220,310], KEWR:[40,110,220,290],
+  KTEB:[190,10], KBOS:[40,90,150,220,270,330], KPHL:[90,270,350,170],
+  KBWI:[100,280,150,330], KDCA:[40,220,30,210], KIAD:[120,300,190,10],
+  KPIT:[100,280,140,320], KBUF:[140,320,230,50], KSYR:[100,280,150,330],
+  KALB:[190,10], KRIC:[160,340],
+  // Southeast
+  KATL:[80,90,260,270], KMIA:[90,80,270,260], KFLL:[90,270], KPBI:[90,270],
+  KMCO:[180,360,170,350], KTPA:[190,100,10,280], KRSW:[60,240],
+  KJAX:[70,250,130,310], KPNS:[170,350], KCLT:[180,360], KRDU:[140,320],
+  KCHS:[150,330], KMSY:[110,290,180,360], KMEM:[180,360,270,90],
+  KBNA:[130,310,20,200], KTYS:[230,50],
+  // Midwest
+  KORD:[40,90,100,140,220,270,280,320], KMDW:[130,310], KMSP:[120,170,300,350],
+  KDTW:[220,230,40,50], KCVG:[90,180,270,360], KSTL:[120,110,300,290],
+  KMCI:[90,180,270,360], KGRR:[80,260], KMKE:[80,260,130,310], KIND:[50,230],
+  KCMH:[100,280], KCLE:[60,240], KDSM:[130,310],
+  // South Central
+  KDFW:[130,180,310,360], KDAL:[130,310,60,240], KADS:[150,330],
+  KIAH:[90,80,270,260,140,320], KHOU:[130,310], KSAT:[130,310,30,210],
+  KAUS:[180,360,130,310], KELP:[260,80], KABQ:[210,30,80,260],
+  KOKC:[180,360,130,310], KTUL:[180,360],
+  // Alaska / Hawaii
+  PANC:[70,150,250,330], PAFA:[200,20], PAJN:[80,260],
+  PHNL:[80,40,260,220], PHKO:[180,360], PHOG:[50,230],
+  // Canada
+  CYVR:[80,120,260,300], CYYC:[170,280,350,100], CYYZ:[60,150,240,330],
+  CYUL:[60,100,240,280], CYOW:[140,320], CYHZ:[150,60,330,240],
+  // Europe
+  EGLL:[90,270], EGKK:[80,260], EGCC:[50,230], EGPH:[60,240],
+  LFPG:[90,80,270,260], LFPO:[80,260], EDDF:[80,70,260,250],
+  EDDM:[80,260], EDDB:[80,260], EHAM:[90,180,270,360,40,220],
+  EBBR:[80,260,30,210], LSZH:[140,320,100,280], LIRF:[160,70,340,250],
+  LEMD:[180,140,360,320], LEBL:[70,200,250,20], ESSA:[80,260],
+  EKCH:[40,220], ENGM:[180,360], EFHK:[150,330], EPWA:[150,330],
+  LOWW:[110,160,290,340],
+  // Middle East / Asia
+  OMDB:[120,300,130,310], OMAA:[130,310], OTBD:[160,340], LLBG:[80,260],
+  RJTT:[160,340], RJAA:[160,340], RKSI:[150,330], VHHH:[70,250],
+  WSSS:[20,200], ZBAA:[150,180,330,360],
+  // Aus / NZ
+  YSSY:[160,70,340,250], YMML:[160,270,340,90], YBBN:[140,10,320,190],
+  NZAA:[50,230], FAOR:[30,10,210,190],
 };
+
+// ─── Runway / crosswind helpers ───────────────────────────────────────────────
+
+function normalizeAngle(a) { return ((a % 360) + 540) % 360 - 180; }
+
+// Convert a runway designator like "28R" to the nearest heading in RUNWAY_DATA
+function rwyDesignatorToHeading(icao, designator) {
+  const runways = RUNWAY_DATA[icao];
+  if (!runways || !designator) return null;
+  const num = parseInt(designator);
+  if (!num) return null;
+  const target = (num * 10) % 360 || 360;
+  let best = null, bestDiff = Infinity;
+  for (const h of runways) {
+    const diff = Math.abs(normalizeAngle(h - target));
+    if (diff < bestDiff) { bestDiff = diff; best = h; }
+  }
+  return bestDiff <= 25 ? best : null;
+}
+
+// ─── North-up airport layout ──────────────────────────────────────────────────
+
+function airportLayoutSvg(icao, activeRwyHeading) {
+  const runways = RUNWAY_DATA[icao];
+  if (!runways) return '';
+
+  const cx = 100, cy = 100;
+  const L = 58, W = 5, LBL = L + 13;
+
+  // Deduplicate: treat headings 180° apart as one runway line (keep low heading 0–180)
+  const lines = [];
+  for (const h of runways) {
+    const low = h > 180 ? h - 180 : h;
+    const dupe = lines.find(l =>
+      Math.abs(normalizeAngle(l.low - h))       < 5 ||
+      Math.abs(normalizeAngle(l.low - h + 180)) < 5 ||
+      Math.abs(normalizeAngle(l.low - h - 180)) < 5
+    );
+    if (dupe) dupe.originals.push(h);
+    else lines.push({ low, originals: [h] });
+  }
+
+  // Assign lateral offsets for nearly-parallel runways (within 20°)
+  for (let i = 0; i < lines.length; i++) {
+    for (let j = i + 1; j < lines.length; j++) {
+      if (Math.abs(lines[i].low - lines[j].low) < 20) {
+        lines[i].lateralOffset = -14;
+        lines[j].lateralOffset = 14;
+      }
+    }
+  }
+
+  const parts = [];
+
+  for (const { low, originals, lateralOffset = 0 } of lines) {
+    const rad  = low * Math.PI / 180;
+    const sinL = Math.sin(rad), cosL = Math.cos(rad);
+
+    // Perpendicular direction (90° CW from runway): (cosL, sinL)
+    const ocx = cx + lateralOffset * cosL;
+    const ocy = cy + lateralOffset * sinL;
+
+    // Runway numbers
+    const lowNum  = Math.round(low / 10) || 36;
+    const highH   = (low + 180) % 360;
+    const highNum = Math.round(highH / 10) || 36;
+
+    // Which end is the active landing threshold?
+    const isHighActive = activeRwyHeading != null &&
+      Math.abs(normalizeAngle(activeRwyHeading - highH)) <= 15;
+    const isLowActive = activeRwyHeading != null &&
+      Math.abs(normalizeAngle(activeRwyHeading - low)) <= 15;
+    const isActive = isHighActive || isLowActive;
+
+    const fill   = isActive ? '#1a3d28' : '#111a11';
+    const stroke = isActive ? '#52b788' : '#243824';
+    const tFill  = isActive ? '#8892b0' : '#4a5468';
+    const tAct   = '#7dffc0';
+
+    // Runway rect, rotated around (ocx, ocy)
+    parts.push(`<g transform="translate(${ocx.toFixed(1)},${ocy.toFixed(1)}) rotate(${low})">
+      <rect x="${-W}" y="${-L}" width="${W*2}" height="${L*2}" rx="2" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>
+      <line x1="0" y1="${(-L*0.55).toFixed(1)}" x2="0" y2="${(-L*0.15).toFixed(1)}" stroke="#ffffff15" stroke-width="1" stroke-dasharray="3,4"/>
+      <line x1="0" y1="${(L*0.15).toFixed(1)}"  x2="0" y2="${(L*0.55).toFixed(1)}"  stroke="#ffffff15" stroke-width="1" stroke-dasharray="3,4"/>
+      ${isHighActive ? `<polygon points="0,${-L+3} -4,${-L+10} 4,${-L+10}" fill="#52b788"/>` : ''}
+      ${isLowActive  ? `<polygon points="0,${L-3}  -4,${L-10}  4,${L-10}"  fill="#52b788"/>` : ''}
+    </g>`);
+
+    // Labels outside each end (not rotated — always horizontal)
+    // "high" end = direction `low` from center, shows highNum (threshold of high-number runway)
+    // "low"  end = direction `low+180`, shows lowNum
+    const tx_h = ocx + LBL * sinL,  ty_h = ocy - LBL * cosL;
+    const tx_l = ocx - LBL * sinL,  ty_l = ocy + LBL * cosL;
+
+    parts.push(`<text x="${tx_h.toFixed(1)}" y="${(ty_h+3).toFixed(1)}" text-anchor="middle" fill="${isHighActive ? tAct : tFill}" font-size="18" font-family="monospace" font-weight="bold">${String(highNum).padStart(2,'0')}</text>`);
+    parts.push(`<text x="${tx_l.toFixed(1)}" y="${(ty_l+3).toFixed(1)}" text-anchor="middle" fill="${isLowActive  ? tAct : tFill}" font-size="18" font-family="monospace" font-weight="bold">${String(lowNum).padStart(2,'0')}</text>`);
+  }
+
+  return `<svg width="120" height="120" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="97" fill="#090e18" stroke="#1e2d45" stroke-width="1"/>
+    <text x="100" y="11"  text-anchor="middle" fill="#ffffffb0" font-size="15" font-family="monospace" font-weight="bold">N</text>
+    <line x1="100" y1="14" x2="100" y2="22" stroke="#ffffff70" stroke-width="1.5"/>
+    <text x="100" y="197" text-anchor="middle" fill="#ffffff50" font-size="13" font-family="monospace">S</text>
+    <text x="5"   y="103" text-anchor="start" fill="#ffffff50" font-size="13" font-family="monospace">W</text>
+    <text x="196" y="103" text-anchor="end"   fill="#ffffff50" font-size="13" font-family="monospace">E</text>
+    ${parts.join('\n    ')}
+  </svg>`;
+}
+
+function runwayWindViz(icao, wind) {
+  const runways = RUNWAY_DATA[icao];
+  if (!runways || !wind) return '';
+  if (wind.dir === null) {
+    // Calm — pick first runway, show calm message
+    return runwayWindSvg(icao, Math.round(runways[0] / 10), runways[0], 0, 0);
+  }
+  if (wind.dir === 'VRB') return `<div style="font-size:12px;color:var(--text-dim);padding:6px 0">Variable wind — runway not deterministic</div>`;
+
+  const wDir = parseInt(wind.dir);
+  const wSpd = wind.spd || 0;
+
+  // Pick runway end with max headwind component
+  let bestRwy = runways[0], bestHW = -Infinity;
+  for (const rh of runways) {
+    const hw = wSpd * Math.cos(normalizeAngle(wDir - rh) * Math.PI / 180);
+    if (hw > bestHW) { bestHW = hw; bestRwy = rh; }
+  }
+
+  return runwayWindSvg(icao, Math.round(bestRwy / 10) || 36, bestRwy, wDir, wSpd);
+}
+
+function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
+  const alpha = windSpd > 0 ? normalizeAngle(windDir - rwyHeading) : 0;
+  const rad   = alpha * Math.PI / 180;
+  const xw    = windSpd * Math.sin(rad);   // + = from right
+  const hw    = windSpd * Math.cos(rad);   // + = headwind
+  const xwAbs = Math.abs(xw), hwAbs = Math.abs(hw);
+  const calm  = windSpd < 0.5;
+
+  const xwColor = calm ? '#64ffda' : xwAbs < 5 ? '#64ffda' : xwAbs < 10 ? '#ffb347' : '#ff6b6b';
+  const hwColor = hw < 0 ? '#ff6b6b' : '#64ffda';
+
+  // Wind arrow (points FROM wind direction TOWARD aircraft)
+  const cx = 100, ac_y = 88;
+
+  // Headwind/tailwind bar (vertical, right of runway)
+  const hwBarX  = 128;
+  const hwBarLen = Math.min(hwAbs * 2, 35);
+  const hwFromAbove = hw >= 0;
+  const hwBarSrc = hwFromAbove ? ac_y - hwBarLen : ac_y + hwBarLen;
+  const hwBarTip = ac_y;
+  const hwMarkId2 = `hw-arr-${uid.toLowerCase().replace(/\W/g,'')}`;
+  const ar  = 58;  // arrow radius
+  const ax  = cx + ar * Math.sin(rad),  ay  = ac_y - ar * Math.cos(rad);
+  const ex  = cx + 20 * Math.sin(rad),  ey  = ac_y - 20 * Math.cos(rad);
+
+  // Crosswind side bar
+  const barY   = 136;
+  const barLen = Math.min(xwAbs * 3, 52);
+  const fromR  = xw > 0; // wind from the right
+  const bsx    = cx + (fromR ? 70 : -70);   // bar start x (wind source side)
+  const bex    = cx + (fromR ? 18 : -18);   // bar end x   (near runway edge)
+
+  // Labels
+  const rwyLabel = String(rwyNum).padStart(2, '0');
+  const oppNum   = rwyNum > 18 ? rwyNum - 18 : rwyNum + 18;
+  const oppLabel = String(oppNum).padStart(2, '0');
+  const markId   = `arr-${uid.toLowerCase().replace(/\W/g,'')}`;
+
+  const xwLine = calm  ? 'Calm — any runway' :
+                 xwAbs < 0.5 ? 'No crosswind' :
+                 `${Math.round(xwAbs)}kt from ${fromR ? 'right' : 'left'}`;
+  const hwLine = calm || hwAbs < 0.5 ? '' :
+                 `${hw < 0 ? 'Tailwind' : 'Headwind'} ${Math.round(hwAbs)}kt`;
+
+  // Runway rect: y=12 height=100 → bottom at y=112
+  // Bottom rwy number sits at y=126 (outside runway rect, clearly visible)
+  return `
+  <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;">
+    <div class="data-label" style="align-self:flex-start;margin-bottom:2px">Suggested Runway <span style="color:var(--accent);font-size:14px;font-weight:900;letter-spacing:2px">${String(rwyNum).padStart(2,'0')}</span></div>
+    <svg width="150" height="122" viewBox="0 0 200 163" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="${markId}" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+          <polygon points="0 0,7 2.5,0 5" fill="${xwColor}"/>
+        </marker>
+        <marker id="${hwMarkId2}" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+          <polygon points="0 0,7 2.5,0 5" fill="${hwColor}"/>
+        </marker>
+      </defs>
+
+      <!-- Runway surface: y=12 to y=112 -->
+      <rect x="87" y="12" width="26" height="100" rx="3" fill="#1c2a1c" stroke="#3d5c3d" stroke-width="1.5"/>
+      <!-- Centerline dashes -->
+      ${[24,38,52,66,80,94].map(y=>`<line x1="100" y1="${y}" x2="100" y2="${y+8}" stroke="#ffffff22" stroke-width="1.5"/>`).join('')}
+      <!-- Threshold stripes (bottom landing end) -->
+      <rect x="90" y="104" width="5" height="5" rx="1" fill="#ffffff40"/>
+      <rect x="97" y="104" width="5" height="5" rx="1" fill="#ffffff40"/>
+      <rect x="104" y="104" width="5" height="5" rx="1" fill="#ffffff40"/>
+      <!-- Runway numbers: top = far/departure end, bottom = landing threshold end -->
+      <text x="100" y="24" text-anchor="middle" fill="#ffffffa0" font-size="13" font-family="monospace" font-weight="bold">${oppLabel}</text>
+      <text x="100" y="126" text-anchor="middle" fill="#ffffffa0" font-size="13" font-family="monospace" font-weight="bold">RWY ${rwyLabel}</text>
+
+      <!-- Aircraft (top-down, nose pointing UP = into approach) -->
+      <rect  x="98"  y="72"  width="4"  height="20" rx="2"   fill="#ddeeff"/>
+      <polygon points="100,67 96,76 104,76"                   fill="#ddeeff"/>
+      <rect  x="80"  y="80"  width="40" height="4"  rx="2"   fill="#ddeeff"/>
+      <rect  x="91"  y="91"  width="18" height="3"  rx="1.5" fill="#ddeeff"/>
+
+      <!-- Wind arrow -->
+      ${!calm ? `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}"
+                       x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"
+                 stroke="${xwColor}" stroke-width="2.5" opacity="0.9"
+                 marker-end="url(#${markId})"/>` :
+        `<text x="100" y="50" text-anchor="middle" fill="#64ffda" font-size="9" font-family="monospace">CALM</text>`}
+
+      <!-- Crosswind side bar -->
+      ${!calm && barLen > 2 ? `
+      <line x1="${bsx}" y1="${barY}" x2="${bex}" y2="${barY}"
+            stroke="${xwColor}" stroke-width="3" stroke-linecap="round" opacity="0.8"
+            marker-end="url(#${markId})"/>
+      <text x="${fromR ? bsx + 5 : bsx - 5}" y="${barY - 7}"
+            text-anchor="${fromR ? 'start' : 'end'}"
+            fill="${xwColor}" font-size="13" font-family="monospace" font-weight="700">${Math.round(xwAbs)}kt</text>
+      ` : (!calm ? `<text x="100" y="${barY+4}" text-anchor="middle" fill="#64ffda" font-size="11" font-family="monospace">no XW</text>` : '')}
+
+      <!-- Headwind / tailwind bar (vertical, right of runway) -->
+      ${!calm && hwAbs >= 0.5 ? `
+      <line x1="${hwBarX}" y1="${hwBarSrc}" x2="${hwBarX}" y2="${hwBarTip}"
+            stroke="${hwColor}" stroke-width="3" stroke-linecap="round" opacity="0.85"
+            marker-end="url(#${hwMarkId2})"/>
+      <text x="${hwBarX}" y="${hwFromAbove ? hwBarSrc - 6 : hwBarSrc + 14}"
+            text-anchor="middle" fill="${hwColor}" font-size="13" font-family="monospace" font-weight="700">${Math.round(hwAbs)}kt</text>
+      ` : ''}
+    </svg>
+  </div>`;
+}
+
+// ─── METAR translation ────────────────────────────────────────────────────────
+
+const SKY_LABELS = {
+  SKC: 'Sky Clear', CLR: 'Clear', FEW: 'Few', SCT: 'Scattered',
+  BKN: 'Broken', OVC: 'Overcast', VV: 'Vert. Visibility',
+};
+
+function skyLayerHtml(c) {
+  const label = SKY_LABELS[c.cover] || c.cover;
+  const alt   = c.base != null ? ` at ${(c.base * 100).toLocaleString()}'` : '';
+  return `<span class="sky-layer">${label} (${c.cover})${alt}</span>`;
+}
+
+// ─── Airport database ─────────────────────────────────────────────────────────
+// [icao, name, city, iata?]
+
+const AIRPORTS = [
+  ['KJFK','John F. Kennedy Intl','New York, NY','JFK'],
+  ['KLGA','LaGuardia','New York, NY','LGA'],
+  ['KEWR','Newark Liberty Intl','Newark, NJ','EWR'],
+  ['KTEB','Teterboro','Teterboro, NJ','TEB'],
+  ['KBOS','Logan Intl','Boston, MA','BOS'],
+  ['KBDL','Bradley Intl','Hartford, CT','BDL'],
+  ['KPVD','T.F. Green','Providence, RI','PVD'],
+  ['KPHL','Philadelphia Intl','Philadelphia, PA','PHL'],
+  ['KBWI','Baltimore/Washington Intl','Baltimore, MD','BWI'],
+  ['KDCA','Reagan National','Washington, DC','DCA'],
+  ['KIAD','Dulles Intl','Washington, DC','IAD'],
+  ['KPIT','Pittsburgh Intl','Pittsburgh, PA','PIT'],
+  ['KRIC','Richmond Intl','Richmond, VA','RIC'],
+  ['KALB','Albany Intl','Albany, NY','ALB'],
+  ['KBUF','Buffalo Niagara Intl','Buffalo, NY','BUF'],
+  ['KSYR','Syracuse Hancock Intl','Syracuse, NY','SYR'],
+  ['KATL','Hartsfield-Jackson Intl','Atlanta, GA','ATL'],
+  ['KMIA','Miami Intl','Miami, FL','MIA'],
+  ['KFLL','Fort Lauderdale-Hollywood','Fort Lauderdale, FL','FLL'],
+  ['KPBI','Palm Beach Intl','West Palm Beach, FL','PBI'],
+  ['KMCO','Orlando Intl','Orlando, FL','MCO'],
+  ['KTPA','Tampa Intl','Tampa, FL','TPA'],
+  ['KRSW','Southwest Florida Intl','Fort Myers, FL','RSW'],
+  ['KJAX','Jacksonville Intl','Jacksonville, FL','JAX'],
+  ['KPNS','Pensacola Intl','Pensacola, FL','PNS'],
+  ['KCLT','Charlotte Douglas Intl','Charlotte, NC','CLT'],
+  ['KRDU','Raleigh-Durham Intl','Raleigh, NC','RDU'],
+  ['KCHS','Charleston Intl','Charleston, SC','CHS'],
+  ['KMSY','Louis Armstrong Intl','New Orleans, LA','MSY'],
+  ['KMEM','Memphis Intl','Memphis, TN','MEM'],
+  ['KBNA','Nashville Intl','Nashville, TN','BNA'],
+  ['KTYS','McGhee Tyson','Knoxville, TN','TYS'],
+  ['KCVG','Cincinnati/Northern Kentucky','Cincinnati, OH','CVG'],
+  ['KCMH','John Glenn Columbus Intl','Columbus, OH','CMH'],
+  ['KCLE','Cleveland Hopkins Intl','Cleveland, OH','CLE'],
+  ['KSDF','Louisville Intl','Louisville, KY','SDF'],
+  ['KORD',"O'Hare Intl",'Chicago, IL','ORD'],
+  ['KMDW','Chicago Midway','Chicago, IL','MDW'],
+  ['KMSP','Minneapolis-St Paul Intl','Minneapolis, MN','MSP'],
+  ['KDTW','Detroit Metro Wayne County','Detroit, MI','DTW'],
+  ['KGRR','Gerald R. Ford Intl','Grand Rapids, MI','GRR'],
+  ['KSTL','St. Louis Lambert Intl','St. Louis, MO','STL'],
+  ['KMCI','Kansas City Intl','Kansas City, MO','MCI'],
+  ['KOMA','Eppley Airfield','Omaha, NE','OMA'],
+  ['KMKE','Milwaukee Mitchell Intl','Milwaukee, WI','MKE'],
+  ['KIND','Indianapolis Intl','Indianapolis, IN','IND'],
+  ['KDFW','Dallas/Fort Worth Intl','Dallas, TX','DFW'],
+  ['KDAL','Dallas Love Field','Dallas, TX','DAL'],
+  ['KADS','Addison Airport','Dallas, TX'],
+  ['KIAH','George Bush Intercontinental','Houston, TX','IAH'],
+  ['KHOU','William P. Hobby','Houston, TX','HOU'],
+  ['KSAT','San Antonio Intl','San Antonio, TX','SAT'],
+  ['KAUS','Austin-Bergstrom Intl','Austin, TX','AUS'],
+  ['KELP','El Paso Intl','El Paso, TX','ELP'],
+  ['KABQ','Albuquerque Intl Sunport','Albuquerque, NM','ABQ'],
+  ['KOKC','Will Rogers World','Oklahoma City, OK','OKC'],
+  ['KTUL','Tulsa Intl','Tulsa, OK','TUL'],
+  ['KLIT','Bill & Hillary Clinton Natl','Little Rock, AR','LIT'],
+  ['KDEN','Denver Intl','Denver, CO','DEN'],
+  ['KCOS','Colorado Springs','Colorado Springs, CO','COS'],
+  ['KSLC','Salt Lake City Intl','Salt Lake City, UT','SLC'],
+  ['KBOI','Boise Airport','Boise, ID','BOI'],
+  ['KBZN','Bozeman Yellowstone Intl','Bozeman, MT','BZN'],
+  ['KPHX','Phoenix Sky Harbor Intl','Phoenix, AZ','PHX'],
+  ['KSDL','Scottsdale Airport','Scottsdale, AZ'],
+  ['KTUS','Tucson Intl','Tucson, AZ','TUS'],
+  ['KLAS','Harry Reid Intl','Las Vegas, NV','LAS'],
+  ['KHND','Henderson Executive','Las Vegas, NV'],
+  ['KRNO','Reno-Tahoe Intl','Reno, NV','RNO'],
+  ['KSEA','Seattle-Tacoma Intl','Seattle, WA','SEA'],
+  ['KBFI','Boeing Field / King County','Seattle, WA'],
+  ['KPAE','Paine Field','Everett, WA','PAE'],
+  ['KPDX','Portland Intl','Portland, OR','PDX'],
+  ['KHIO','Portland-Hillsboro','Hillsboro, OR'],
+  ['KEUG','Eugene Airport','Eugene, OR','EUG'],
+  ['KMFR','Rogue Valley Intl','Medford, OR','MFR'],
+  ['KGEG','Spokane Intl','Spokane, WA','GEG'],
+  ['KLAX','Los Angeles Intl','Los Angeles, CA','LAX'],
+  ['KVNY','Van Nuys Airport','Van Nuys, CA'],
+  ['KSMO','Santa Monica Municipal','Santa Monica, CA'],
+  ['KBUR','Hollywood Burbank','Burbank, CA','BUR'],
+  ['KLGB','Long Beach Airport','Long Beach, CA','LGB'],
+  ['KSNA','John Wayne-Orange County','Santa Ana, CA','SNA'],
+  ['KONT','Ontario Intl','Ontario, CA','ONT'],
+  ['KPSP','Palm Springs Intl','Palm Springs, CA','PSP'],
+  ['KSAN','San Diego Intl','San Diego, CA','SAN'],
+  ['KMYF','Montgomery-Gibbs Executive','San Diego, CA'],
+  ['KSFO','San Francisco Intl','San Francisco, CA','SFO'],
+  ['KOAK','Oakland Intl','Oakland, CA','OAK'],
+  ['KSJC','San Jose Mineta Intl','San Jose, CA','SJC'],
+  ['KPAO','Palo Alto Airport','Palo Alto, CA'],
+  ['KSQL','San Carlos Airport','San Carlos, CA'],
+  ['KHAF','Half Moon Bay Airport','Half Moon Bay, CA'],
+  ['KNUQ','Moffett Federal Airfield','Mountain View, CA'],
+  ['KRHV','Reid-Hillview Airport','San Jose, CA'],
+  ['KLVK','Livermore Municipal','Livermore, CA'],
+  ['KCCR','Buchanan Field','Concord, CA'],
+  ['KAPC','Napa County Airport','Napa, CA'],
+  ['KSTS','Charles M. Schulz-Sonoma','Santa Rosa, CA'],
+  ['KWVI','Watsonville Municipal','Watsonville, CA'],
+  ['KMRY','Monterey Regional','Monterey, CA','MRY'],
+  ['KSCK','Stockton Metropolitan','Stockton, CA','SCK'],
+  ['KMOD','Modesto City-County','Modesto, CA','MOD'],
+  ['KFAT','Fresno Yosemite Intl','Fresno, CA','FAT'],
+  ['KBFL','Meadows Field','Bakersfield, CA','BFL'],
+  ['KSBA','Santa Barbara Municipal','Santa Barbara, CA','SBA'],
+  ['KSBP','San Luis Obispo County','San Luis Obispo, CA','SBP'],
+  ['KSMF','Sacramento Intl','Sacramento, CA','SMF'],
+  ['KSAC','Sacramento Executive','Sacramento, CA'],
+  ['PANC','Ted Stevens Anchorage Intl','Anchorage, AK','ANC'],
+  ['PAFA','Fairbanks Intl','Fairbanks, AK','FAI'],
+  ['PAJN','Juneau Intl','Juneau, AK','JNU'],
+  ['PHNL','Daniel K. Inouye Intl','Honolulu, HI','HNL'],
+  ['PHKO','Ellison Onizuka Kona Intl','Kona, HI','KOA'],
+  ['PHOG','Kahului Airport','Maui, HI','OGG'],
+  ['CYVR','Vancouver Intl','Vancouver, BC','YVR'],
+  ['CYYC','Calgary Intl','Calgary, AB','YYC'],
+  ['CYYZ','Toronto Pearson Intl','Toronto, ON','YYZ'],
+  ['CYOW','Ottawa Macdonald-Cartier','Ottawa, ON','YOW'],
+  ['CYUL','Montréal-Trudeau Intl','Montreal, QC','YUL'],
+  ['CYHZ','Halifax Stanfield Intl','Halifax, NS','YHZ'],
+  ['CYWG','Winnipeg Richardson Intl','Winnipeg, MB','YWG'],
+  ['EGLL','London Heathrow','London, UK','LHR'],
+  ['EGKK','London Gatwick','London, UK','LGW'],
+  ['EGLC','London City Airport','London, UK','LCY'],
+  ['EGCC','Manchester Airport','Manchester, UK','MAN'],
+  ['EGPH','Edinburgh Airport','Edinburgh, UK','EDI'],
+  ['EIDW','Dublin Airport','Dublin, Ireland','DUB'],
+  ['LFPG','Paris Charles de Gaulle','Paris, France','CDG'],
+  ['LFPO','Paris Orly','Paris, France','ORY'],
+  ['EDDF','Frankfurt Intl','Frankfurt, Germany','FRA'],
+  ['EDDM','Munich Airport','Munich, Germany','MUC'],
+  ['EDDB','Berlin Brandenburg','Berlin, Germany','BER'],
+  ['EHAM','Amsterdam Schiphol','Amsterdam, Netherlands','AMS'],
+  ['EBBR','Brussels Airport','Brussels, Belgium','BRU'],
+  ['LSZH','Zurich Airport','Zurich, Switzerland','ZRH'],
+  ['LSGG','Geneva Airport','Geneva, Switzerland','GVA'],
+  ['LIRF','Rome Fiumicino','Rome, Italy','FCO'],
+  ['LIMC','Milan Malpensa','Milan, Italy','MXP'],
+  ['LEMD','Madrid Barajas Intl','Madrid, Spain','MAD'],
+  ['LEBL','Barcelona El Prat','Barcelona, Spain','BCN'],
+  ['LPPT','Lisbon Humberto Delgado','Lisbon, Portugal','LIS'],
+  ['ESSA','Stockholm Arlanda','Stockholm, Sweden','ARN'],
+  ['EFHK','Helsinki-Vantaa','Helsinki, Finland','HEL'],
+  ['EKCH','Copenhagen Airport','Copenhagen, Denmark','CPH'],
+  ['ENGM','Oslo Gardermoen','Oslo, Norway','OSL'],
+  ['EPWA','Warsaw Chopin','Warsaw, Poland','WAW'],
+  ['LKPR','Václav Havel Prague','Prague, Czech Republic','PRG'],
+  ['LOWW','Vienna Intl','Vienna, Austria','VIE'],
+  ['OMDB','Dubai Intl','Dubai, UAE','DXB'],
+  ['OMDW','Al Maktoum Intl','Dubai, UAE','DWC'],
+  ['OMAA','Abu Dhabi Intl','Abu Dhabi, UAE','AUH'],
+  ['OTBD','Hamad Intl','Doha, Qatar','DOH'],
+  ['LLBG','Ben Gurion Intl','Tel Aviv, Israel','TLV'],
+  ['RJTT','Tokyo Haneda','Tokyo, Japan','HND'],
+  ['RJAA','Tokyo Narita','Tokyo, Japan','NRT'],
+  ['RKSI','Incheon Intl','Seoul, South Korea','ICN'],
+  ['RCTP','Taoyuan Intl','Taipei, Taiwan','TPE'],
+  ['VHHH','Hong Kong Intl','Hong Kong','HKG'],
+  ['ZBAA','Beijing Capital Intl','Beijing, China','PEK'],
+  ['ZSPD','Shanghai Pudong Intl','Shanghai, China','PVG'],
+  ['VABB','Chhatrapati Shivaji Intl','Mumbai, India','BOM'],
+  ['VIDP','Indira Gandhi Intl','Delhi, India','DEL'],
+  ['WSSS','Singapore Changi','Singapore','SIN'],
+  ['VTBS','Suvarnabhumi Intl','Bangkok, Thailand','BKK'],
+  ['WMKK','Kuala Lumpur Intl','Kuala Lumpur, Malaysia','KUL'],
+  ['WADD','Ngurah Rai Intl','Bali, Indonesia','DPS'],
+  ['YSSY','Sydney Kingsford Smith','Sydney, Australia','SYD'],
+  ['YMML','Melbourne Airport','Melbourne, Australia','MEL'],
+  ['YBBN','Brisbane Airport','Brisbane, Australia','BNE'],
+  ['YPPH','Perth Airport','Perth, Australia','PER'],
+  ['NZAA','Auckland Airport','Auckland, New Zealand','AKL'],
+  ['FAOR','O.R. Tambo Intl','Johannesburg, South Africa','JNB'],
+  ['FACT','Cape Town Intl','Cape Town, South Africa','CPT'],
+  ['HECA','Cairo Intl','Cairo, Egypt','CAI'],
+  ['DNMM','Murtala Muhammed Intl','Lagos, Nigeria','LOS'],
+  ['HKJK','Jomo Kenyatta Intl','Nairobi, Kenya','NBO'],
+  ['MMMX','Mexico City Intl','Mexico City, Mexico','MEX'],
+  ['MMUN','Cancún Intl','Cancún, Mexico','CUN'],
+  ['MMGL','Miguel Hidalgo y Costilla','Guadalajara, Mexico','GDL'],
+  ['SBGR','São Paulo Guarulhos Intl','São Paulo, Brazil','GRU'],
+  ['SBGL','Rio de Janeiro Galeão','Rio de Janeiro, Brazil','GIG'],
+  ['SAEZ','Ministro Pistarini Intl','Buenos Aires, Argentina','EZE'],
+  ['SCEL','Arturo Merino Benítez','Santiago, Chile','SCL'],
+  ['SKBO','El Dorado Intl','Bogotá, Colombia','BOG'],
+  ['SPIM','Jorge Chávez Intl','Lima, Peru','LIM'],
+  ['MPTO','Tocumen Intl','Panama City, Panama','PTY'],
+  ['TJSJ','Luis Muñoz Marín Intl','San Juan, Puerto Rico','SJU'],
+];
+
+// Fast lookup map
+const AIRPORT_MAP = {};
+AIRPORTS.forEach(([icao, name, city, iata]) => {
+  AIRPORT_MAP[icao] = { name, city, iata };
+});
+
+function airportInfo(icao) { return AIRPORT_MAP[icao] || null; }
+
+function searchAirports(q) {
+  if (!q || q.length < 2) return [];
+  q = q.toLowerCase();
+  const exact = [], prefix = [], rest = [];
+  for (const [icao, name, city, iata = ''] of AIRPORTS) {
+    const il = icao.toLowerCase(), nl = name.toLowerCase(), cl = city.toLowerCase(), al = iata.toLowerCase();
+    if (il === q || al === q)                          { exact.push([icao, name, city]); continue; }
+    if (il.startsWith(q) || al.startsWith(q))         { prefix.push([icao, name, city]); continue; }
+    if (nl.includes(q) || cl.includes(q))             { rest.push([icao, name, city]); }
+  }
+  return [...exact, ...prefix, ...rest].slice(0, 8);
+}
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
 
 function parseWind(text) {
+  // D-ATIS format: WIND 050/03KT
   const m = text.match(/WIND\s+(\d{3})\/(\d{2,3})(?:G(\d{2,3}))?KT/i);
   if (m) return { dir: m[1], spd: parseInt(m[2]), gust: m[3] ? parseInt(m[3]) : null };
   if (/WIND\s+CALM/i.test(text)) return { dir: null, spd: 0, gust: null };
-  const vrb = text.match(/WIND\s+VRB(\d{2,3})KT/i);
+  const vrb = text.match(/(?:WIND\s+)?VRB(\d{2,3})KT/i);
   if (vrb) return { dir: 'VRB', spd: parseInt(vrb[1]), gust: null };
+  // METAR format: 05003KT or 05003G15KT
+  if (/\b00000KT\b/i.test(text)) return { dir: null, spd: 0, gust: null };
+  const metar = text.match(/\b(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT\b/i);
+  if (metar) return { dir: metar[1], spd: parseInt(metar[2]), gust: metar[3] ? parseInt(metar[3]) : null };
   return null;
 }
 
@@ -563,10 +1276,18 @@ function parseTime(text) {
   return m ? m[1]+'Z' : null;
 }
 
+function zuluToLocal(zuluTime) {
+  const m = zuluTime.match(/(\d{2})(\d{2})Z/);
+  if (!m) return null;
+  const now = new Date();
+  const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), parseInt(m[1]), parseInt(m[2])));
+  return utc.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 async function fetchDatis(icao) {
-  const res = await fetch(`https://datis.clowd.io/api/${icao}`);
+  const res = await fetch(`https://atis.info/api/${icao}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
   if (!Array.isArray(data) || data.length === 0) throw new Error('No D-ATIS');
@@ -574,11 +1295,78 @@ async function fetchDatis(icao) {
 }
 
 async function fetchMetar(icao) {
-  const res = await fetch(`https://aviationweather.gov/api/data/metar?ids=${icao}&format=json`);
+  const res = await fetch(`https://metar.vatsim.net/metar.php?id=${icao}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) throw new Error('No METAR');
-  return data[0];
+  const text = (await res.text()).trim();
+  if (!text || !text.toUpperCase().startsWith(icao.toUpperCase())) throw new Error('No METAR');
+  return parseRawMetar(text);
+}
+
+function parseMetarTime(raw) {
+  const m = raw.match(/\b(\d{2})(\d{2})(\d{2})Z\b/);
+  if (!m) return null;
+  const [ , day, hh, mm ] = m;
+  const now = new Date();
+  const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), parseInt(day), parseInt(hh), parseInt(mm)));
+  // Roll month back if day is in the future (end-of-month edge case)
+  if (utc > now + 12 * 3600000) utc.setUTCMonth(utc.getUTCMonth() - 1);
+  const zuluStr  = `${hh}${mm}Z`;
+  const localStr = utc.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  return { zuluStr, localStr };
+}
+
+function parseRawMetar(raw) {
+  // Wind
+  let wind = null;
+  if (/\b00000KT\b/.test(raw)) {
+    wind = { dir: null, spd: 0, gust: null };
+  } else {
+    const wm = raw.match(/\b(VRB|\d{3})(\d{2,3})(?:G(\d{2,3}))?KT\b/);
+    if (wm) wind = { dir: wm[1] === 'VRB' ? 'VRB' : wm[1], spd: parseInt(wm[2]), gust: wm[3] ? parseInt(wm[3]) : null };
+  }
+
+  // Visibility
+  let visibility = null;
+  const visM = raw.match(/\b(\d+(?:\s+\d+\/\d+)?|\d+\/\d+)SM\b/);
+  if (visM) visibility = visM[1];
+  else if (/\b10\+SM\b/.test(raw)) visibility = '10+';
+
+  // Sky
+  const clouds = [];
+  const skyRe = /\b(SKC|CLR|FEW|SCT|BKN|OVC|VV)(\d{3})?(CB|TCU)?\b/g;
+  let sm;
+  while ((sm = skyRe.exec(raw)) !== null) {
+    clouds.push({ cover: sm[1], base: sm[2] ? parseInt(sm[2]) : null });
+  }
+
+  // Temp / Dewpoint
+  let temp = null, dewp = null;
+  const tdM = raw.match(/\b(M?\d{2})\/(M?\d{2})\b/);
+  if (tdM) {
+    temp = tdM[1].startsWith('M') ? -parseInt(tdM[1].slice(1)) : parseInt(tdM[1]);
+    dewp = tdM[2].startsWith('M') ? -parseInt(tdM[2].slice(1)) : parseInt(tdM[2]);
+  }
+
+  // Altimeter
+  let altimeter = null;
+  const altM = raw.match(/\bA(\d{4})\b/);
+  if (altM) altimeter = altM[1].slice(0, 2) + '.' + altM[1].slice(2);
+
+  return { wind, visibility, clouds, temp, dewp, altimeter, flightCat: calcFlightCat(clouds, visibility), obsTime: parseMetarTime(raw), raw };
+}
+
+function calcFlightCat(clouds, visibility) {
+  let ceiling = Infinity;
+  for (const c of clouds) {
+    if ((c.cover === 'BKN' || c.cover === 'OVC' || c.cover === 'VV') && c.base !== null) {
+      ceiling = Math.min(ceiling, c.base * 100);
+    }
+  }
+  const vis = parseFloat(visibility) || Infinity;
+  if (ceiling < 500  || vis < 1) return 'LIFR';
+  if (ceiling < 1000 || vis < 3) return 'IFR';
+  if (ceiling <= 3000 || vis <= 5) return 'MVFR';
+  return 'VFR';
 }
 
 async function loadAirport(icao, force = false) {
@@ -602,6 +1390,7 @@ async function loadAirport(icao, force = false) {
           altimeter: parseAltimeter(d.datis),
           runways: parseRunways(d.datis),
           time: parseTime(d.datis),
+          raw: d.datis,
         })),
       };
 
@@ -609,18 +1398,7 @@ async function loadAirport(icao, force = false) {
       // Fallback to METAR
       const m = await fetchMetar(icao);
 
-      result = {
-        icao,
-        hasDatis: false,
-        metar: {
-          wind: m.wdir !== undefined ? {
-            dir: m.wdir === 'VRB' ? 'VRB' : String(m.wdir).padStart(3, '0'),
-            spd: m.wspd ?? 0,
-            gust: m.wgst || null,
-          } : null,
-          altimeter: m.altim ? (m.altim / 100).toFixed(2) : null,
-        },
-      };
+      result = { icao, hasDatis: false, metar: m };
     }
 
     cache[icao] = { loading: false, error: null, data: result, lastFetched: new Date() };
@@ -689,10 +1467,27 @@ function runwayHtml(runways) {
   return html;
 }
 
-function entryHtml(entry) {
+function entryHtml(entry, icao = '') {
   const { arr, dep } = entry.runways;
   const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
   const runwayLabel = isCombined ? 'Runway In Use' : '';
+  // For D-ATIS: use the runway the ATIS declares; fall back to wind-computed
+  let viz = '', activeH = null;
+  if (icao) {
+    const arrRwy = entry.runways?.arr?.[0];
+    activeH = rwyDesignatorToHeading(icao, arrRwy);
+    if (activeH !== null) {
+      const rwyNum = Math.round(activeH / 10) || 36;
+      const w = entry.wind;
+      const isVRB = w?.dir === 'VRB';
+      const wDir = (!w || w.dir === null || isVRB) ? 0 : (parseInt(w.dir) || 0);
+      const wSpd = (!w || w.dir === null || isVRB) ? 0 : (w.spd || 0);
+      viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd);
+    } else {
+      viz = runwayWindViz(icao, entry.wind);
+    }
+  }
+  const layoutSvg = icao ? airportLayoutSvg(icao, activeH) : '';
 
   return `
     <div class="atis-identifier">
@@ -701,6 +1496,7 @@ function entryHtml(entry) {
       </div>
       <div class="atis-meta">
         ${entry.time ? `<span class="atis-time">${entry.time}</span>` : ''}
+        ${entry.time ? `<span class="atis-time-local">${zuluToLocal(entry.time)}</span>` : ''}
         ${entry.type ? `<span class="atis-type">${entry.type.toUpperCase()}</span>` : ''}
       </div>
     </div>
@@ -711,19 +1507,38 @@ function entryHtml(entry) {
     </div>
 
     <div class="data-section">
+      ${runwayLabel ? `<div class="data-label">${runwayLabel}</div>` : ''}
+      ${runwayHtml(entry.runways)}
+    </div>
+
+    <div class="data-section">
       <div class="data-label">Altimeter</div>
       <span class="altimeter-value">A${entry.altimeter || 'N/A'}</span>
     </div>
 
-    <div class="data-section">
-      ${runwayLabel ? `<div class="data-label">${runwayLabel}</div>` : ''}
-      ${runwayHtml(entry.runways)}
-    </div>`;
+    ${(viz || layoutSvg) ? `<div class="data-section">
+      <div class="rwy-pair" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:nowrap">
+        ${viz || ''}
+        ${layoutSvg ? `<div style="flex:0 0 auto">
+          <div class="data-label" style="margin-bottom:4px">Airport Layout</div>
+          ${layoutSvg}
+          <a href="https://www.airnav.com/airport/${icao}" target="_blank" rel="noopener"
+             style="font-size:10px;color:var(--accent);letter-spacing:.5px;text-decoration:none;display:block;margin-top:4px">
+            ↗ Official Diagram</a>
+        </div>` : ''}
+      </div>
+    </div>` : ''}
+
+    ${entry.raw ? `
+    <div class="raw-text-label">Raw D-ATIS</div>
+    <div class="raw-text-block">${entry.raw}</div>` : ''}`;
 }
 
 function renderCard(icao) {
   const c = cache[icao] || {};
-  const name = NAMES[icao] || '';
+  const info = airportInfo(icao);
+  const name = info ? info.name : '';
+  const city = info ? info.city : '';
   const timeStr = c.lastFetched
     ? c.lastFetched.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '';
@@ -740,19 +1555,84 @@ function renderCard(icao) {
   } else if (c.data) {
     const d = c.data;
     if (!d.hasDatis && d.metar) {
+      const mt = d.metar;
+      const skyHtml = mt.clouds && mt.clouds.length
+        ? mt.clouds.map(skyLayerHtml).join('')
+        : '<span style="color:var(--text-dim);font-size:13px">N/A</span>';
+      const tempStr = mt.temp != null ? `${mt.temp}°C` : 'N/A';
+      const dewpStr = mt.dewp != null ? `${mt.dewp}°C` : 'N/A';
+      const visStr  = mt.visibility != null ? `${mt.visibility} SM` : 'N/A';
       body = `
-        <div class="no-datis-banner">No D-ATIS — showing METAR data · Runway in use unavailable</div>
-        <div class="data-section">
-          <div class="data-label">Wind (METAR)</div>
-          ${windHtml(d.metar.wind)}
+        <div class="no-datis-banner">No D-ATIS — METAR only · Runway in use not available</div>
+        <div class="info-table">
+          <div class="info-row">
+            <div class="info-cell full">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+                ${mt.flightCat ? `<span class="flight-cat ${mt.flightCat}">${mt.flightCat}</span>` : ''}
+                <div style="text-align:right;">
+                  <div class="data-label" style="margin-bottom:4px;">Wind</div>
+                  ${windHtml(mt.wind)}
+                </div>
+              </div>
+              ${mt.obsTime ? `<div style="font-size:11px;color:var(--text-dim);margin-top:8px;letter-spacing:0.5px">${mt.obsTime.zuluStr} | ${mt.obsTime.localStr}</div>` : ''}
+            </div>
+          </div>
+          <div class="info-row">
+            <div class="info-cell">
+              <div class="data-label">Visibility</div>
+              <span class="metar-val">${visStr}</span>
+            </div>
+            <div class="info-cell">
+              <div class="data-label">Sky</div>
+              <div class="sky-layers">${skyHtml}</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <div class="info-cell">
+              <div class="data-label">Temp</div>
+              <span class="metar-val">${tempStr}</span>
+            </div>
+            <div class="info-cell">
+              <div class="data-label">Dewpoint</div>
+              <span class="metar-val" style="color:var(--text-dim)">${dewpStr}</span>
+            </div>
+            <div class="info-cell">
+              <div class="data-label">Altimeter</div>
+              <span class="altimeter-value" style="font-size:20px">A${mt.altimeter || 'N/A'}</span>
+            </div>
+          </div>
+          ${(() => {
+            const viz = runwayWindViz(icao, mt.wind);
+            const rwyData = RUNWAY_DATA[icao];
+            let activeH = null;
+            if (rwyData && mt.wind && mt.wind.dir !== null && mt.wind.dir !== 'VRB') {
+              const wDir = parseInt(mt.wind.dir), wSpd = mt.wind.spd || 0;
+              let bestHW = -Infinity;
+              for (const rh of rwyData) {
+                const hw = wSpd * Math.cos(normalizeAngle(wDir - rh) * Math.PI / 180);
+                if (hw > bestHW) { bestHW = hw; activeH = rh; }
+              }
+            }
+            const layout = airportLayoutSvg(icao, activeH);
+            if (!viz && !layout) return '';
+            return `<div class="info-row"><div class="info-cell full">
+              <div class="rwy-pair" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:nowrap">
+                ${viz || ''}
+                ${layout ? `<div style="flex:0 0 auto">
+                  <div class="data-label" style="margin-bottom:4px">Airport Layout</div>
+                  ${layout}
+                  <a href="https://www.airnav.com/airport/${icao}" target="_blank" rel="noopener"
+                     style="font-size:10px;color:var(--accent);letter-spacing:.5px;text-decoration:none;display:block;margin-top:4px">
+                    ↗ Official Diagram</a>
+                </div>` : ''}
+              </div>
+            </div></div>`;
+          })()}
         </div>
-        <div class="data-section">
-          <div class="data-label">Altimeter (METAR)</div>
-          <span class="altimeter-value">A${d.metar.altimeter || 'N/A'}</span>
-        </div>`;
+        ${mt.raw ? `<div class="raw-text-label">Raw METAR</div><div class="raw-text-block">${mt.raw}</div>` : ''}`;
     } else {
       body = d.entries.map((e, i) =>
-        (i > 0 ? '<hr class="divider">' : '') + entryHtml(e)
+        (i > 0 ? '<hr class="divider">' : '') + entryHtml(e, icao)
       ).join('');
     }
   }
@@ -764,13 +1644,20 @@ function renderCard(icao) {
     : '';
 
   return `
-    <div class="card" id="card-${icao}">
+    <div class="card" id="card-${icao}" data-icao="${icao}" draggable="true">
       <div class="card-header">
         <div>
-          <div class="airport-id">${icao}</div>
+          <div class="airport-id">${icao}${info?.iata ? ` · ${info.iata}` : ''}</div>
           ${name ? `<div class="airport-name">${name}</div>` : ''}
+          ${city ? `<div class="airport-city">${city}</div>` : ''}
         </div>
         <div class="card-actions">
+          <a class="liveatc-btn" href="https://www.liveatc.net/search/?icao=${icao}" target="_blank" rel="noopener" title="Listen on LiveATC">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+            </svg>
+          </a>
           <button class="refresh-btn ${c.loading ? 'spinning' : ''}" onclick="loadAirport('${icao}', true)" title="Refresh">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="1 4 1 10 7 10"></polyline>
@@ -804,6 +1691,42 @@ function renderCards() {
   grid.style.display = 'grid';
   empty.style.display = 'none';
   grid.innerHTML = airports.map(renderCard).join('');
+  attachDragHandlers();
+}
+
+// ─── Drag & drop ──────────────────────────────────────────────────────────────
+
+function attachDragHandlers() {
+  document.querySelectorAll('.card[draggable]').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      draggedIcao = card.dataset.icao;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (card.dataset.icao !== draggedIcao) card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const targetIcao = card.dataset.icao;
+      if (!draggedIcao || draggedIcao === targetIcao) return;
+      const from = airports.indexOf(draggedIcao);
+      const to   = airports.indexOf(targetIcao);
+      if (from === -1 || to === -1) return;
+      airports.splice(from, 1);
+      airports.splice(to, 0, draggedIcao);
+      saveAirports();
+      renderCards();
+    });
+  });
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -852,9 +1775,73 @@ function saveAirports() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-document.getElementById('airportInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') addAirport();
+// ─── Search dropdown ──────────────────────────────────────────────────────────
+
+const airportInput  = document.getElementById('airportInput');
+const searchDropdown = document.getElementById('searchDropdown');
+let ddIndex = -1;
+
+airportInput.addEventListener('input', () => {
+  const q = airportInput.value.trim();
+  const results = searchAirports(q);
+  ddIndex = -1;
+
+  if (!results.length) { searchDropdown.classList.remove('visible'); return; }
+
+  searchDropdown.innerHTML = results.map(([icao, name, city], i) => `
+    <div class="dd-item" data-icao="${icao}" data-idx="${i}">
+      <span class="dd-icao">${icao}</span>
+      <div class="dd-info">
+        <span class="dd-name">${name}</span>
+        <span class="dd-city">${city}</span>
+      </div>
+    </div>`).join('');
+
+  searchDropdown.classList.add('visible');
+
+  searchDropdown.querySelectorAll('.dd-item').forEach(el => {
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      selectAirport(el.dataset.icao);
+    });
+  });
 });
+
+airportInput.addEventListener('keydown', e => {
+  const items = searchDropdown.querySelectorAll('.dd-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    ddIndex = Math.min(ddIndex + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === ddIndex));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    ddIndex = Math.max(ddIndex - 1, -1);
+    items.forEach((el, i) => el.classList.toggle('active', i === ddIndex));
+  } else if (e.key === 'Enter') {
+    if (ddIndex >= 0 && items[ddIndex]) {
+      e.preventDefault();
+      selectAirport(items[ddIndex].dataset.icao);
+    } else {
+      addAirport();
+    }
+  } else if (e.key === 'Escape') {
+    searchDropdown.classList.remove('visible');
+  }
+});
+
+airportInput.addEventListener('blur', () => {
+  setTimeout(() => searchDropdown.classList.remove('visible'), 150);
+});
+
+function selectAirport(icao) {
+  searchDropdown.classList.remove('visible');
+  airportInput.value = '';
+  if (!airports.includes(icao)) {
+    airports.push(icao);
+    saveAirports();
+    loadAirport(icao);
+  }
+}
 
 renderCards();
 airports.forEach(icao => loadAirport(icao));
