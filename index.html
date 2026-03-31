@@ -943,13 +943,6 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
   const ax  = cx + ar * Math.sin(rad),  ay  = ac_y - ar * Math.cos(rad);
   const ex  = cx + 20 * Math.sin(rad),  ey  = ac_y - 20 * Math.cos(rad);
 
-  // Crosswind side bar
-  const barY   = 136;
-  const barLen = Math.min(xwAbs * 3, 52);
-  const fromR  = xw > 0; // wind from the right
-  const bsx    = cx + (fromR ? 70 : -70);   // bar start x (wind source side)
-  const bex    = cx + (fromR ? 18 : -18);   // bar end x   (near runway edge)
-
   // Labels
   const rwyLabel = String(rwyNum).padStart(2, '0');
   const oppNum   = rwyNum > 18 ? rwyNum - 18 : rwyNum + 18;
@@ -1007,15 +1000,6 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
               fill="${xwColor}" font-size="11" font-family="monospace" font-weight="700">${windSpd}kt</text>`;
       })() : ''}
 
-      <!-- Crosswind side bar -->
-      ${!calm && barLen > 2 ? `
-      <line x1="${bsx}" y1="${barY}" x2="${bex}" y2="${barY}"
-            stroke="${xwColor}" stroke-width="3" stroke-linecap="round" opacity="0.8"
-            marker-end="url(#${markId})"/>
-      <text x="${fromR ? bsx - 5 : bsx + 5}" y="${barY - 7}"
-            text-anchor="${fromR ? 'end' : 'start'}"
-            fill="${xwColor}" font-size="13" font-family="monospace" font-weight="700">${Math.round(xwAbs)}kt</text>
-      ` : (!calm ? `<text x="100" y="${barY+4}" text-anchor="middle" fill="#64ffda" font-size="11" font-family="monospace">no XW</text>` : '')}
 
     </svg>
   </div>`;
