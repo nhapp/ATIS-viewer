@@ -1005,8 +1005,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
                  marker-end="url(#${markId})"/>
         <text x="${tlx}" y="${tly}" text-anchor="middle" dominant-baseline="middle"
               fill="${xwColor}" font-size="11" font-family="monospace" font-weight="700">${windSpd}kt</text>`;
-      })() :
-        `<text x="100" y="50" text-anchor="middle" fill="#64ffda" font-size="9" font-family="monospace">CALM</text>`}
+      })() : ''}
 
       <!-- Crosswind side bar -->
       ${!calm && barLen > 2 ? `
