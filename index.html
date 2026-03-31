@@ -667,6 +667,66 @@ let airports = JSON.parse(localStorage.getItem('atis-airports') || '[]');
 const cache = {}; // icao → { loading, error, data, lastFetched }
 let draggedIcao = null;
 
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+
+const SB_URL = 'https://zkilbgilzoxlxbyzyqgn.supabase.co';
+const SB_KEY = 'sb_publishable_c4O8q_kirKjnIViQ-P6vag_SeKEL4Pj';
+const SESSION_ID = (() => {
+  let s = localStorage.getItem('atis-sid');
+  if (!s) { s = crypto.randomUUID(); localStorage.setItem('atis-sid', s); }
+  return s;
+})();
+
+function sb(path, method = 'GET', body = null, prefer = '') {
+  return fetch(`${SB_URL}/rest/v1/${path}`, {
+    method,
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': `Bearer ${SB_KEY}`,
+      'Content-Type': 'application/json',
+      ...(prefer && { 'Prefer': prefer })
+    },
+    body: body ? JSON.stringify(body) : undefined
+  }).catch(() => null);
+}
+
+function sbAirportAdd(icao) {
+  sb('user_airports', 'POST', { session_id: SESSION_ID, icao }, 'resolution=ignore-duplicates');
+}
+
+function sbAirportRemove(icao) {
+  sb(`user_airports?session_id=eq.${SESSION_ID}&icao=eq.${encodeURIComponent(icao)}`, 'DELETE');
+}
+
+function sbTrackLookup(icao, type) {
+  sb('lookups', 'POST', { session_id: SESSION_ID, icao, lookup_type: type });
+}
+
+async function sbInit() {
+  let ip = null;
+  try { ip = (await (await fetch('https://api.ipify.org?format=json')).json()).ip; } catch {}
+  sb('rpc/upsert_session', 'POST', {
+    p_session_id: SESSION_ID,
+    p_ip: ip,
+    p_user_agent: navigator.userAgent.slice(0, 300)
+  });
+  const res = await sb(`user_airports?session_id=eq.${SESSION_ID}&select=icao&order=added_at.asc`);
+  if (res?.ok) {
+    const rows = await res.json();
+    const remote = rows.map(r => r.icao);
+    if (remote.length > 0) {
+      const merged = [...new Set([...remote, ...airports])];
+      const added = merged.filter(icao => !airports.includes(icao));
+      airports = merged;
+      localStorage.setItem('atis-airports', JSON.stringify(airports));
+      airports.filter(icao => !remote.includes(icao)).forEach(sbAirportAdd);
+      if (added.length) { renderCards(); added.forEach(icao => loadAirport(icao)); }
+    } else {
+      airports.forEach(sbAirportAdd);
+    }
+  }
+}
+
 // ─── Runway data (headings in degrees) ───────────────────────────────────────
 
 const RUNWAY_DATA = {
@@ -1235,14 +1295,16 @@ function airportInfo(icao) { return AIRPORT_MAP[icao] || null; }
 function searchAirports(q) {
   if (!q || q.length < 2) return [];
   q = q.toLowerCase();
-  const exact = [], prefix = [], rest = [];
+  const exact = [], prefix = [], middle = [], rest = [];
   for (const [icao, name, city, iata = ''] of AIRPORTS) {
     const il = icao.toLowerCase(), nl = name.toLowerCase(), cl = city.toLowerCase(), al = iata.toLowerCase();
-    if (il === q || al === q)                          { exact.push([icao, name, city]); continue; }
-    if (il.startsWith(q) || al.startsWith(q))         { prefix.push([icao, name, city]); continue; }
-    if (nl.includes(q) || cl.includes(q))             { rest.push([icao, name, city]); }
+    if (il === q || al === q)                                    { exact.push([icao, name, city]); continue; }
+    if (il.startsWith(q) || al.startsWith(q))                   { prefix.push([icao, name, city]); continue; }
+    if (il.includes(q) || al.includes(q))                       { middle.push([icao, name, city]); continue; }
+    if (nl.includes(q) || cl.includes(q) ||
+        nl.split(' ').some(w => w.startsWith(q)))               { rest.push([icao, name, city]); }
   }
-  return [...exact, ...prefix, ...rest].slice(0, 8);
+  return [...exact, ...prefix, ...middle, ...rest].slice(0, 10);
 }
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
@@ -1446,6 +1508,7 @@ async function loadAirport(icao, force = false) {
     }
 
     cache[icao] = { loading: false, error: null, data: result, lastFetched: new Date() };
+    sbTrackLookup(icao, result.hasDatis ? 'datis' : 'metar');
   } catch (err) {
    cache[icao] = { loading: false, error: err.message, data: null, lastFetched: new Date() };
   }
@@ -1798,6 +1861,7 @@ function quickAdd(icao) {
   if (!airports.includes(icao)) {
     airports.push(icao);
     saveAirports();
+    sbAirportAdd(icao);
     loadAirport(icao);
   }
 }
@@ -1806,6 +1870,7 @@ function removeAirport(icao) {
   airports = airports.filter(a => a !== icao);
   delete cache[icao];
   saveAirports();
+  sbAirportRemove(icao);
   renderCards();
 }
 
@@ -1883,12 +1948,14 @@ function selectAirport(icao) {
   if (!airports.includes(icao)) {
     airports.push(icao);
     saveAirports();
+    sbAirportAdd(icao);
     loadAirport(icao);
   }
 }
 
 renderCards();
 airports.forEach(icao => loadAirport(icao));
+sbInit();
 
 // Auto-refresh every 10 minutes
 setInterval(refreshAll, 10 * 60 * 1000);
