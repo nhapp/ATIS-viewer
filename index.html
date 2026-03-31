@@ -949,12 +949,6 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
   const oppLabel = String(oppNum).padStart(2, '0');
   const markId   = `arr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
-  const xwLine = calm  ? 'Calm — any runway' :
-                 xwAbs < 0.5 ? 'No crosswind' :
-                 `${Math.round(xwAbs)}kt from ${fromR ? 'right' : 'left'}`;
-  const hwLine = calm || hwAbs < 0.5 ? '' :
-                 `${hw < 0 ? 'Tailwind' : 'Headwind'} ${Math.round(hwAbs)}kt`;
-
   // Runway rect: y=12 height=100 → bottom at y=112
   // Bottom rwy number sits at y=126 (outside runway rect, clearly visible)
   return `
