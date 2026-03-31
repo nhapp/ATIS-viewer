@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ATIS Viewer</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='14' fill='%230d1b2a'/><ellipse cx='50' cy='50' rx='6' ry='42' fill='%2364ffda'/><path d='M44,42 Q16,52 3,58 L6,66 Q20,60 46,50Z' fill='%2364ffda'/><path d='M56,42 Q84,52 97,58 L94,66 Q80,60 54,50Z' fill='%2364ffda'/><path d='M45,80 Q32,86 24,88 L25,92 Q34,90 47,85Z' fill='%2364ffda'/><path d='M55,80 Q68,86 76,88 L75,92 Q66,90 53,85Z' fill='%2364ffda'/><ellipse cx='50' cy='10' rx='18' ry='3.5' fill='%2364ffda'/><ellipse cx='50' cy='10' rx='3.5' ry='3.5' fill='%230d1b2a'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M10,48 Q18,38 48,36 Q70,34 84,42 Q92,46 91,52 Q88,57 72,59 Q46,62 22,57 Q10,54 10,50Z' fill='%2364ffda'/><ellipse cx='50' cy='36' rx='13' ry='8' fill='%230d1b2a'/><path d='M40,56 L52,56 L72,76 L66,79 L44,62Z' fill='%2364ffda'/><path d='M16,47 L24,47 L28,55 L22,57 L16,51Z' fill='%2364ffda'/><path d='M15,30 Q19,26 24,27 L26,44 L15,44Z' fill='%2364ffda'/><circle cx='89' cy='49' r='9' fill='none' stroke='%2364ffda' stroke-width='2.5'/><line x1='89' y1='40' x2='89' y2='58' stroke='%2364ffda' stroke-width='3' stroke-linecap='round'/></svg>">
   <style>
     :root {
       --bg: #070c18;
@@ -1003,15 +1003,15 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
   // Headwind (hw>0): wind from ahead → arrow points DOWN the runway (src above, tip below)
   // Tailwind (hw<0): wind from behind → arrow points UP the runway (src below, tip above)
   const hwBarX     = 128;
-  const hwBarLen   = Math.min(hwAbs * 2, 30);
+  const hwBarLen   = Math.min(hwAbs * 2, 25);
   const hwFromAbove = hw >= 0;
-  const hwRefY     = 40;  // reference point high on runway, away from crosswind arrow
+  const hwRefY     = 60;  // mid-runway
   const hwBarSrc   = hwFromAbove ? hwRefY - hwBarLen : hwRefY + hwBarLen;
   const hwBarTip   = hwRefY;
   const hwMarkId   = `hwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
-  // Crosswind arrow (horizontal, at wing level)
-  const barY  = 82;
+  // Crosswind arrow — below aircraft body (y=92), above threshold stripes (y=104)
+  const barY  = 97;
   const fromR = xw > 0;
   const bsx   = cx + (fromR ? 70 : -70);   // tail (wind source side)
   const bex   = cx + (fromR ? 18 : -18);   // tip  (near runway edge)
