@@ -938,12 +938,15 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
 
   const cx = 100, ac_y = 88;
 
-  // Headwind/tailwind arrow (vertical, right of runway)
+  // Headwind/tailwind arrow (vertical, right of runway — positioned high to avoid crosswind overlap)
+  // Headwind (hw>0): wind from ahead → arrow points DOWN the runway (src above, tip below)
+  // Tailwind (hw<0): wind from behind → arrow points UP the runway (src below, tip above)
   const hwBarX     = 128;
-  const hwBarLen   = Math.min(hwAbs * 2, 35);
-  const hwFromAbove = hw >= 0;  // headwind comes from in front (above in SVG)
-  const hwBarSrc   = hwFromAbove ? ac_y - hwBarLen : ac_y + hwBarLen;
-  const hwBarTip   = ac_y;
+  const hwBarLen   = Math.min(hwAbs * 2, 30);
+  const hwFromAbove = hw >= 0;
+  const hwRefY     = 40;  // reference point high on runway, away from crosswind arrow
+  const hwBarSrc   = hwFromAbove ? hwRefY - hwBarLen : hwRefY + hwBarLen;
+  const hwBarTip   = hwRefY;
   const hwMarkId   = `hwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
   // Crosswind arrow (horizontal, at wing level)
@@ -1007,7 +1010,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
       <line x1="${hwBarX}" y1="${hwBarSrc}" x2="${hwBarX}" y2="${hwBarTip}"
             stroke="${hwColor}" stroke-width="3" stroke-linecap="round" opacity="0.9"
             marker-end="url(#${hwMarkId})"/>
-      <text x="${hwBarX + 6}" y="${hwFromAbove ? hwBarSrc - 4 : hwBarSrc + 14}"
+      <text x="${hwBarX + 6}" y="${hwBarSrc}" dominant-baseline="middle"
             text-anchor="start" fill="${hwColor}" font-size="12" font-family="monospace" font-weight="700">${Math.round(hwAbs)}kt</text>
       ` : ''}
     </svg>
