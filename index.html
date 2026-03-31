@@ -933,24 +933,31 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
   const xwAbs = Math.abs(xw), hwAbs = Math.abs(hw);
   const calm  = windSpd < 0.5;
 
-  const xwColor = calm ? '#64ffda' : xwAbs < 5 ? '#64ffda' : xwAbs < 10 ? '#ffb347' : '#ff6b6b';
+  const xwColor = xwAbs < 5 ? '#64ffda' : xwAbs < 10 ? '#ffb347' : '#ff6b6b';
   const hwColor = hw < 0 ? '#ff6b6b' : '#64ffda';
 
-  // Wind arrow (points FROM wind direction TOWARD aircraft)
   const cx = 100, ac_y = 88;
 
-  const ar  = 58;  // arrow radius
-  const ax  = cx + ar * Math.sin(rad),  ay  = ac_y - ar * Math.cos(rad);
-  const ex  = cx + 20 * Math.sin(rad),  ey  = ac_y - 20 * Math.cos(rad);
+  // Headwind/tailwind arrow (vertical, right of runway)
+  const hwBarX     = 128;
+  const hwBarLen   = Math.min(hwAbs * 2, 35);
+  const hwFromAbove = hw >= 0;  // headwind comes from in front (above in SVG)
+  const hwBarSrc   = hwFromAbove ? ac_y - hwBarLen : ac_y + hwBarLen;
+  const hwBarTip   = ac_y;
+  const hwMarkId   = `hwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
+
+  // Crosswind arrow (horizontal, at wing level)
+  const barY  = 82;
+  const fromR = xw > 0;
+  const bsx   = cx + (fromR ? 70 : -70);   // tail (wind source side)
+  const bex   = cx + (fromR ? 18 : -18);   // tip  (near runway edge)
+  const markId = `xwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
   // Labels
   const rwyLabel = String(rwyNum).padStart(2, '0');
   const oppNum   = rwyNum > 18 ? rwyNum - 18 : rwyNum + 18;
   const oppLabel = String(oppNum).padStart(2, '0');
-  const markId   = `arr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
-  // Runway rect: y=12 height=100 → bottom at y=112
-  // Bottom rwy number sits at y=126 (outside runway rect, clearly visible)
   return `
   <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;">
     <div style="align-self:flex-start;margin-bottom:4px">
@@ -962,6 +969,9 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
         <marker id="${markId}" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
           <polygon points="0 0,7 2.5,0 5" fill="${xwColor}"/>
         </marker>
+        <marker id="${hwMarkId}" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+          <polygon points="0 0,7 2.5,0 5" fill="${hwColor}"/>
+        </marker>
       </defs>
 
       <!-- Runway surface: y=12 to y=112 -->
@@ -972,7 +982,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
       <rect x="90" y="104" width="5" height="5" rx="1" fill="#ffffff40"/>
       <rect x="97" y="104" width="5" height="5" rx="1" fill="#ffffff40"/>
       <rect x="104" y="104" width="5" height="5" rx="1" fill="#ffffff40"/>
-      <!-- Runway numbers: top = far/departure end, bottom = landing threshold end -->
+      <!-- Runway numbers -->
       <text x="100" y="24" text-anchor="middle" fill="#ffffffa0" font-size="13" font-family="monospace" font-weight="bold">${oppLabel}</text>
       <text x="100" y="126" text-anchor="middle" fill="#ffffffa0" font-size="13" font-family="monospace" font-weight="bold">RWY ${rwyLabel}</text>
 
@@ -982,19 +992,24 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
       <rect  x="80"  y="80"  width="40" height="4"  rx="2"   fill="#ddeeff"/>
       <rect  x="91"  y="91"  width="18" height="3"  rx="1.5" fill="#ddeeff"/>
 
-      <!-- Wind arrow with speed at tail -->
-      ${!calm ? (() => {
-        const tlx = (ax + (ax - cx) * 0.14).toFixed(1);
-        const tly = (ay + (ay - ac_y) * 0.14).toFixed(1);
-        return `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}"
-                       x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"
-                 stroke="${xwColor}" stroke-width="2.5" opacity="0.9"
-                 marker-end="url(#${markId})"/>
-        <text x="${tlx}" y="${tly}" text-anchor="middle" dominant-baseline="middle"
-              fill="${xwColor}" font-size="11" font-family="monospace" font-weight="700">${windSpd}kt</text>`;
-      })() : ''}
+      <!-- Crosswind arrow -->
+      ${!calm && xwAbs >= 0.5 ? `
+      <line x1="${bsx}" y1="${barY}" x2="${bex}" y2="${barY}"
+            stroke="${xwColor}" stroke-width="3" stroke-linecap="round" opacity="0.9"
+            marker-end="url(#${markId})"/>
+      <text x="${fromR ? bsx - 5 : bsx + 5}" y="${barY - 8}"
+            text-anchor="${fromR ? 'end' : 'start'}"
+            fill="${xwColor}" font-size="12" font-family="monospace" font-weight="700">${Math.round(xwAbs)}kt</text>
+      ` : ''}
 
-
+      <!-- Headwind / tailwind arrow -->
+      ${!calm && hwAbs >= 0.5 ? `
+      <line x1="${hwBarX}" y1="${hwBarSrc}" x2="${hwBarX}" y2="${hwBarTip}"
+            stroke="${hwColor}" stroke-width="3" stroke-linecap="round" opacity="0.9"
+            marker-end="url(#${hwMarkId})"/>
+      <text x="${hwBarX + 6}" y="${hwFromAbove ? hwBarSrc - 4 : hwBarSrc + 14}"
+            text-anchor="start" fill="${hwColor}" font-size="12" font-family="monospace" font-weight="700">${Math.round(hwAbs)}kt</text>
+      ` : ''}
     </svg>
   </div>`;
 }
