@@ -1010,11 +1010,11 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
   const hwBarTip   = hwRefY;
   const hwMarkId   = `hwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
-  // Crosswind arrow — below aircraft body (y=92), above threshold stripes (y=104)
-  const barY  = 97;
+  // Crosswind arrow at wing level — tip stops 6 units outside wing edge (x=80/120) leaving a small gap
+  const barY  = 82;
   const fromR = xw > 0;
   const bsx   = cx + (fromR ? 70 : -70);   // tail (wind source side)
-  const bex   = cx + (fromR ? 18 : -18);   // tip  (near runway edge)
+  const bex   = cx + (fromR ? 26 : -26);   // tip  (6 units outside wing tip)
   const markId = `xwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
   // Labels
