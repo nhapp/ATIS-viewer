@@ -999,16 +999,16 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
 
   const cx = 100, ac_y = 88;
 
-  // Headwind/tailwind arrow (vertical, right of runway — positioned high to avoid crosswind overlap)
-  // Headwind (hw>0): wind from ahead → arrow points DOWN the runway (src above, tip below)
-  // Tailwind (hw<0): wind from behind → arrow points UP the runway (src below, tip above)
-  const hwBarX     = 128;
-  const hwBarLen   = Math.min(hwAbs * 2, 25);
-  const hwFromAbove = hw >= 0;
-  const hwRefY     = 60;  // mid-runway
-  const hwBarSrc   = hwFromAbove ? hwRefY - hwBarLen : hwRefY + hwBarLen;
-  const hwBarTip   = hwRefY;
-  const hwMarkId   = `hwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
+  // Headwind arrow — angled to match actual wind direction relative to runway heading
+  // Tip is fixed at (hwTipX, hwRefY); tail offset by wind angle so the arrow shows the true approach angle
+  const hwBarX  = 128;
+  const hwBarLen = Math.min(hwAbs * 2, 28);
+  const hwRefY  = 55;
+  const hwTipX  = hwBarX;
+  const hwTipY  = hwRefY;
+  const hwTailX = hwBarX + hwBarLen * Math.sin(rad);   // lateral offset by wind angle
+  const hwTailY = hwRefY - hwBarLen * Math.cos(rad);   // vertical offset by wind angle
+  const hwMarkId = `hwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
   // Crosswind arrow at wing level — tip stops 6 units outside wing edge (x=80/120) leaving a small gap
   const barY  = 82;
@@ -1066,14 +1066,18 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
             fill="${xwColor}" font-size="12" font-family="monospace" font-weight="700">${Math.round(xwAbs)}kt</text>
       ` : ''}
 
-      <!-- Headwind / tailwind arrow -->
-      ${!calm && hwAbs >= 0.5 ? `
-      <line x1="${hwBarX}" y1="${hwBarSrc}" x2="${hwBarX}" y2="${hwBarTip}"
-            stroke="${hwColor}" stroke-width="3" stroke-linecap="round" opacity="0.9"
-            marker-end="url(#${hwMarkId})"/>
-      <text x="${hwBarX + 6}" y="${hwBarSrc}" dominant-baseline="middle"
-            text-anchor="start" fill="${hwColor}" font-size="12" font-family="monospace" font-weight="700">${Math.round(hwAbs)}kt</text>
-      ` : ''}
+      <!-- Headwind / tailwind arrow — angled by actual wind direction relative to runway -->
+      ${!calm && hwAbs >= 0.5 ? (() => {
+        const dx = hwTailX - hwTipX, dy = hwTailY - hwTipY;
+        const mag = Math.sqrt(dx*dx + dy*dy) || 1;
+        const lx = (hwTailX + dx/mag * 9).toFixed(1);
+        const ly = (hwTailY + dy/mag * 9).toFixed(1);
+        return `<line x1="${hwTailX.toFixed(1)}" y1="${hwTailY.toFixed(1)}" x2="${hwTipX}" y2="${hwTipY}"
+              stroke="${hwColor}" stroke-width="3" stroke-linecap="round" opacity="0.9"
+              marker-end="url(#${hwMarkId})"/>
+        <text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle"
+              fill="${hwColor}" font-size="12" font-family="monospace" font-weight="700">${Math.round(hwAbs)}kt</text>`;
+      })() : ''}
     </svg>
   </div>`;
 }
