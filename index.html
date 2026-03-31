@@ -733,6 +733,68 @@ const RUNWAY_DATA = {
   NZAA:[50,230], FAOR:[30,10,210,190],
 };
 
+// ─── Airport timezones ────────────────────────────────────────────────────────
+const TZ_MAP = {
+  // Bay Area / California
+  KPAO:'America/Los_Angeles',KSQL:'America/Los_Angeles',KHAF:'America/Los_Angeles',
+  KLVK:'America/Los_Angeles',KRHV:'America/Los_Angeles',KNUQ:'America/Los_Angeles',
+  KCCR:'America/Los_Angeles',KAPC:'America/Los_Angeles',KWVI:'America/Los_Angeles',
+  KSTS:'America/Los_Angeles',KMRY:'America/Los_Angeles',KSCK:'America/Los_Angeles',
+  KMOD:'America/Los_Angeles',KSFO:'America/Los_Angeles',KOAK:'America/Los_Angeles',
+  KSJC:'America/Los_Angeles',
+  // Pacific
+  KSEA:'America/Los_Angeles',KBFI:'America/Los_Angeles',KPDX:'America/Los_Angeles',
+  KLAS:'America/Los_Angeles',KSAN:'America/Los_Angeles',KLAX:'America/Los_Angeles',
+  KBUR:'America/Los_Angeles',KLGB:'America/Los_Angeles',KSNA:'America/Los_Angeles',
+  KONT:'America/Los_Angeles',KSMF:'America/Los_Angeles',KFAT:'America/Los_Angeles',
+  KRNO:'America/Los_Angeles',
+  // Mountain
+  KDEN:'America/Denver',KSLC:'America/Denver',KABQ:'America/Denver',
+  KCOS:'America/Denver',KGJT:'America/Denver',
+  // Arizona (no DST)
+  KPHX:'America/Phoenix',KTUS:'America/Phoenix',
+  // Central
+  KORD:'America/Chicago',KMDW:'America/Chicago',KMSP:'America/Chicago',
+  KDFW:'America/Chicago',KDAL:'America/Chicago',KADS:'America/Chicago',
+  KIAH:'America/Chicago',KHOU:'America/Chicago',KSAT:'America/Chicago',
+  KAUS:'America/Chicago',KELP:'America/Chicago',KOKC:'America/Chicago',
+  KTUL:'America/Chicago',KMCI:'America/Chicago',KSTL:'America/Chicago',
+  KMKE:'America/Chicago',KDSM:'America/Chicago',KMEM:'America/Chicago',
+  KBNA:'America/Chicago',KMSY:'America/Chicago',KTYS:'America/Chicago',
+  // Eastern
+  KJFK:'America/New_York',KLGA:'America/New_York',KEWR:'America/New_York',
+  KTEB:'America/New_York',KBOS:'America/New_York',KPHL:'America/New_York',
+  KBWI:'America/New_York',KDCA:'America/New_York',KIAD:'America/New_York',
+  KPIT:'America/New_York',KBUF:'America/New_York',KSYR:'America/New_York',
+  KALB:'America/New_York',KRIC:'America/New_York',KATL:'America/New_York',
+  KMIA:'America/New_York',KFLL:'America/New_York',KPBI:'America/New_York',
+  KMCO:'America/New_York',KTPA:'America/New_York',KRSW:'America/New_York',
+  KJAX:'America/New_York',KPNS:'America/New_York',KCLT:'America/New_York',
+  KRDU:'America/New_York',KCHS:'America/New_York',KDTW:'America/New_York',
+  KCVG:'America/New_York',KCMH:'America/New_York',KCLE:'America/New_York',
+  KIND:'America/New_York',KGRR:'America/New_York',
+  // Hawaii / Alaska
+  PHNL:'Pacific/Honolulu',PHKO:'Pacific/Honolulu',PHOG:'Pacific/Honolulu',
+  PANC:'America/Anchorage',PAFA:'America/Anchorage',PAJN:'America/Anchorage',
+  // Canada
+  CYVR:'America/Vancouver',CYYC:'America/Edmonton',CYYZ:'America/Toronto',
+  CYUL:'America/Toronto',CYOW:'America/Toronto',CYHZ:'America/Halifax',
+  // Europe
+  EGLL:'Europe/London',EGKK:'Europe/London',EGCC:'Europe/London',EGPH:'Europe/London',
+  LFPG:'Europe/Paris',LFPO:'Europe/Paris',EDDF:'Europe/Berlin',EDDM:'Europe/Berlin',
+  EDDB:'Europe/Berlin',EHAM:'Europe/Amsterdam',EBBR:'Europe/Brussels',
+  LSZH:'Europe/Zurich',LIRF:'Europe/Rome',LEMD:'Europe/Madrid',LEBL:'Europe/Madrid',
+  ESSA:'Europe/Stockholm',EKCH:'Europe/Copenhagen',ENGM:'Europe/Oslo',
+  EFHK:'Europe/Helsinki',EPWA:'Europe/Warsaw',LOWW:'Europe/Vienna',
+  // Middle East / Asia
+  OMDB:'Asia/Dubai',OMAA:'Asia/Dubai',OTBD:'Asia/Qatar',LLBG:'Asia/Jerusalem',
+  RJTT:'Asia/Tokyo',RJAA:'Asia/Tokyo',RKSI:'Asia/Seoul',VHHH:'Asia/Hong_Kong',
+  WSSS:'Asia/Singapore',ZBAA:'Asia/Shanghai',
+  // Aus / NZ / Africa
+  YSSY:'Australia/Sydney',YMML:'Australia/Melbourne',YBBN:'Australia/Brisbane',
+  NZAA:'Pacific/Auckland',FAOR:'Africa/Johannesburg',
+};
+
 // ─── Runway / crosswind helpers ───────────────────────────────────────────────
 
 function normalizeAngle(a) { return ((a % 360) + 540) % 360 - 180; }
@@ -911,7 +973,10 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
   // Bottom rwy number sits at y=126 (outside runway rect, clearly visible)
   return `
   <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;">
-    <div class="data-label" style="align-self:flex-start;margin-bottom:2px">Suggested Runway <span style="color:var(--accent);font-size:14px;font-weight:900;letter-spacing:2px">${String(rwyNum).padStart(2,'0')}</span></div>
+    <div style="align-self:flex-start;margin-bottom:4px">
+      <div class="data-label" style="margin-bottom:2px">Suggested Runway</div>
+      <div style="color:var(--accent);font-size:32px;font-weight:900;letter-spacing:5px;line-height:1">${String(rwyNum).padStart(2,'0')}</div>
+    </div>
     <svg width="150" height="122" viewBox="0 0 200 163" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="${markId}" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
@@ -1258,12 +1323,26 @@ function parseTime(text) {
   return m ? m[1]+'Z' : null;
 }
 
-function zuluToLocal(zuluTime) {
-  const m = zuluTime.match(/(\d{2})(\d{2})Z/);
+function zuluToLocal(zuluTime, icao) {
+  const m = zuluTime.match(/(\d{2})(\d{2})Z?/i);
+  if (!m) return null;
+  const tz = (icao && TZ_MAP[icao]) || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const now = new Date();
+  const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), parseInt(m[1]), parseInt(m[2])));
+  if (utc - now > 10 * 60000) utc.setUTCDate(utc.getUTCDate() - 1);
+  return utc.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short', timeZone: tz });
+}
+
+function ageColor(zuluStr) {
+  const m = (zuluStr || '').match(/(\d{2})(\d{2})Z?/i);
   if (!m) return null;
   const now = new Date();
   const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), parseInt(m[1]), parseInt(m[2])));
-  return utc.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  if (utc - now > 10 * 60000) utc.setUTCDate(utc.getUTCDate() - 1);
+  const age = Math.floor((now - utc) / 60000);
+  if (age >= 60) return '#ff6b6b';
+  if (age >= 45) return '#ffb347';
+  return null;
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -1477,8 +1556,8 @@ function entryHtml(entry, icao = '') {
         <span class="atis-letter">${entry.code}</span>
       </div>
       <div class="atis-meta">
-        ${entry.time ? `<span class="atis-time">${entry.time}</span>` : ''}
-        ${entry.time ? `<span class="atis-time-local">${zuluToLocal(entry.time)}</span>` : ''}
+        ${entry.time ? `<span class="atis-time" ${ageColor(entry.time) ? `style="color:${ageColor(entry.time)}"` : ''}>${entry.time}</span>` : ''}
+        ${entry.time ? `<span class="atis-time-local" ${ageColor(entry.time) ? `style="color:${ageColor(entry.time)}"` : ''}>${zuluToLocal(entry.time, icao)}</span>` : ''}
         ${entry.type ? `<span class="atis-type">${entry.type.toUpperCase()}</span>` : ''}
       </div>
     </div>
@@ -1556,7 +1635,7 @@ function renderCard(icao) {
                   ${windHtml(mt.wind)}
                 </div>
               </div>
-              ${mt.obsTime ? `<div style="font-size:11px;color:var(--text-dim);margin-top:8px;letter-spacing:0.5px">${mt.obsTime.zuluStr} | ${mt.obsTime.localStr}</div>` : ''}
+              ${mt.obsTime ? `<div style="font-size:11px;color:${ageColor(mt.obsTime.zuluStr) || 'var(--text-dim)'};margin-top:8px;letter-spacing:0.5px">${mt.obsTime.zuluStr} | ${zuluToLocal(mt.obsTime.zuluStr, icao)}</div>` : ''}
             </div>
           </div>
           <div class="info-row">
@@ -1622,7 +1701,7 @@ function renderCard(icao) {
   const badge = c.data
     ? (c.data.hasDatis
         ? `<span class="badge-datis">D-ATIS</span>`
-        : `<span class="badge-metar">METAR</span>`)
+        : `<span class="badge-metar">No D-ATIS</span>`)
     : '';
 
   return `
