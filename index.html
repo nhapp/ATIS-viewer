@@ -1000,14 +1000,13 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
   const cx = 100, ac_y = 88;
 
   // Headwind arrow — angled to match actual wind direction relative to runway heading
-  // Tip is fixed at (hwTipX, hwRefY); tail offset by wind angle so the arrow shows the true approach angle
-  const hwBarX  = 128;
-  const hwBarLen = Math.min(hwAbs * 2, 28);
-  const hwRefY  = 55;
-  const hwTipX  = hwBarX;
-  const hwTipY  = hwRefY;
-  const hwTailX = hwBarX + hwBarLen * Math.sin(rad);   // lateral offset by wind angle
-  const hwTailY = hwRefY - hwBarLen * Math.cos(rad);   // vertical offset by wind angle
+  // Positioned left of runway if wind has left component, right if right component
+  const hwBarLen = Math.min(hwAbs * 3, 50);
+  const hwRefY   = 55;
+  const hwTipX   = Math.sin(rad) >= 0 ? 128 : 72;  // right side for right/zero component, left for left
+  const hwTipY   = hwRefY;
+  const hwTailX  = hwTipX + hwBarLen * Math.sin(rad);
+  const hwTailY  = hwRefY - hwBarLen * Math.cos(rad);
   const hwMarkId = `hwarr-${uid.toLowerCase().replace(/\W/g,'')}`;
 
   // Crosswind arrow at wing level — tip stops 6 units outside wing edge (x=80/120) leaving a small gap
