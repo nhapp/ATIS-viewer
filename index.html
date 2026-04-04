@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ATIS Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='10' r='12' fill='none' stroke='%2364ffda' stroke-width='3'/><line x1='50' y1='-2' x2='50' y2='22' stroke='%2364ffda' stroke-width='3.5' stroke-linecap='round'/><path d='M45,7 C42,22 40,36 41,55 C42,72 44,83 47,91 Q49,97 50,97 Q51,97 53,91 C56,83 58,72 59,55 C60,36 58,22 55,7Z' fill='%2364ffda'/><path d='M41,40 Q16,49 2,53 L4,62 Q18,58 43,50Z' fill='%2364ffda'/><path d='M59,40 Q84,49 98,53 L96,62 Q82,58 57,50Z' fill='%2364ffda'/><path d='M44,83 Q32,87 24,89 L25,93 Q35,91 46,88Z' fill='%2364ffda'/><path d='M56,83 Q68,87 76,89 L75,93 Q65,91 54,88Z' fill='%2364ffda'/></svg>">
   <style>
     :root {
@@ -1674,7 +1675,17 @@ function renderCard(icao) {
       const dewpStr = mt.dewp != null ? `${mt.dewp}°C` : 'N/A';
       const visStr  = mt.visibility != null ? `${mt.visibility} SM` : 'N/A';
       body = `
-        <div class="no-datis-banner">No D-ATIS — METAR only · Runway in use not available</div>
+        <div class="no-datis-banner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <span>No D-ATIS — METAR only · Runway in use not available</span>
+          ${(!atisJobs[icao] || atisJobs[icao].status === 'error')
+            ? `<button onclick="fetchPhoneAtis('${icao}')"
+                 style="font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--accent);
+                        background:transparent;color:var(--accent);cursor:pointer;letter-spacing:.5px">
+                 📞 Fetch ATIS
+               </button>`
+            : ''}
+        </div>
+        ${phoneAtisStatusHtml(icao)}
         <div class="info-table">
           <div class="info-row">
             <div class="info-cell full">
@@ -1884,6 +1895,125 @@ function refreshAll() {
 
 function saveAirports() {
   localStorage.setItem('atis-airports', JSON.stringify(airports));
+}
+
+// ─── Phone ATIS (Twilio + Whisper) ───────────────────────────────────────────
+
+const EDGE_URL = 'https://zkilbgilzoxlxbyzyqgn.supabase.co/functions/v1';
+const atisJobs = {}; // icao → { job_id, status, realtimeSub }
+
+async function fetchPhoneAtis(icao) {
+  // Show calling status immediately
+  atisJobs[icao] = { status: 'calling' };
+  renderCards();
+
+  const res = await fetch(`${EDGE_URL}/fetch-atis`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
+    body: JSON.stringify({ icao, session_id: SESSION_ID }),
+  }).catch(() => null);
+
+  if (!res?.ok) {
+    atisJobs[icao] = { status: 'error', error: 'Could not reach server' };
+    renderCards();
+    return;
+  }
+
+  const data = await res.json();
+
+  if (data.status === 'cached') {
+    atisJobs[icao] = { status: 'complete', parsed: data.data.parsed, transcription: data.data.transcription };
+    renderCards();
+    return;
+  }
+
+  if (data.status === 'no_phone') {
+    atisJobs[icao] = { status: 'no_phone' };
+    renderCards();
+    return;
+  }
+
+  if (data.job_id) {
+    atisJobs[icao] = { status: data.status, job_id: data.job_id };
+    renderCards();
+    subscribeToAtisJob(icao, data.job_id);
+  }
+}
+
+function subscribeToAtisJob(icao, jobId) {
+  // Use Supabase Realtime to watch job row for completion
+  const channel = supabaseRealtime()
+    .channel(`atis-job-${jobId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'atis_jobs',
+      filter: `id=eq.${jobId}`,
+    }, (payload) => {
+      const row = payload.new;
+      atisJobs[icao] = {
+        status: row.status,
+        job_id: jobId,
+        parsed: row.parsed,
+        transcription: row.transcription,
+        error: row.error_msg,
+      };
+      renderCards();
+      if (row.status === 'complete' || row.status === 'error') {
+        channel.unsubscribe();
+      }
+    })
+    .subscribe();
+  if (atisJobs[icao]) atisJobs[icao].realtimeSub = channel;
+}
+
+function supabaseRealtime() {
+  if (!window._sbClient) {
+    window._sbClient = window.supabase.createClient(SB_URL, SB_KEY);
+  }
+  return window._sbClient;
+}
+
+function phoneAtisStatusHtml(icao) {
+  const job = atisJobs[icao];
+  if (!job) return '';
+
+  const STATUS_LABELS = {
+    calling:      { icon: '📞', text: 'Placing call to ATIS…',    color: '#ffb347' },
+    transcribing: { icon: '🎙️', text: 'Transcribing audio…',       color: '#ffb347' },
+    complete:     { icon: '✅', text: 'ATIS received',              color: '#64ffda' },
+    error:        { icon: '⚠️', text: 'ATIS fetch failed',          color: '#ff6b6b' },
+    no_phone:     { icon: '📵', text: 'No phone ATIS on file',      color: 'var(--text-dim)' },
+  };
+
+  const s = STATUS_LABELS[job.status];
+  if (!s) return '';
+
+  let html = `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.05);border:1px solid ${s.color}40">
+    <div style="font-size:12px;color:${s.color};letter-spacing:.5px">${s.icon} ${s.text}</div>`;
+
+  if (job.status === 'complete' && job.parsed) {
+    const p = job.parsed;
+    html += `<div style="margin-top:8px;font-size:13px;color:var(--text)">`;
+    if (p.code)       html += `<div><span class="data-label">ATIS</span> <strong style="color:var(--accent)">${p.code}</strong></div>`;
+    if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}</div>`;
+    if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
+    if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
+    if (p.altimeter)  html += `<div><span class="data-label">ALTIMETER</span> A${p.altimeter}</div>`;
+    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> ${p.runway}</div>`;
+    html += `</div>`;
+    if (job.transcription) {
+      html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Raw transcript</summary>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${job.transcription}</div></details>`;
+    }
+  }
+
+  if (job.status === 'error' && job.error) {
+    html += `<div style="font-size:11px;color:var(--text-dim);margin-top:4px">${job.error}</div>`;
+  }
+
+  html += '</div>';
+  return html;
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
