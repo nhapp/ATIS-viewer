@@ -1032,7 +1032,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = fa
   return `
   <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;">
     <div style="align-self:flex-start;margin-bottom:4px">
-      <div class="data-label" style="margin-bottom:2px">Suggested Runway</div>
+      <div class="data-label" style="margin-bottom:2px">${confirmed ? 'Confirmed Runway' : 'Suggested Runway'}</div>
       <div style="color:var(--accent);font-size:32px;font-weight:900;letter-spacing:5px;line-height:1">${String(rwyNum).padStart(2,'0')}</div>
     </div>
     <svg width="150" height="122" viewBox="0 0 200 163" xmlns="http://www.w3.org/2000/svg">
