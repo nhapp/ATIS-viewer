@@ -1,0 +1,10 @@
+FAA NASR Phone Parser — cycle 2026-03-19
+Downloading NASR zip…
+  Trying https://nfdc.faa.gov/webContent/28DaySub/28DaySubscription_Effective_2026-02-19.zip …
+  ✓ Downloaded 252,328,129 bytes for cycle 2026-02-19
+  Zip contains 177 files
+  APT.txt: 19034 site→ICAO mappings (fallback)
+  AWOS.txt: 2492 active stations with phones
+  APT_RMK.csv not found — skipping remarks ATIS search
+
+Total unique airports with phone numbers: 2343
