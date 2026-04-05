@@ -1995,7 +1995,6 @@ function phoneAtisStatusHtml(icao) {
   if (job.status === 'complete' && job.parsed) {
     const p = job.parsed;
     html += `<div style="margin-top:8px;font-size:13px;color:var(--text)">`;
-    if (p.code)       html += `<div><span class="data-label">ATIS</span> <strong style="color:var(--accent)">${p.code}</strong></div>`;
     if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}</div>`;
     if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
     if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
