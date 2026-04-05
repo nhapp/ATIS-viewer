@@ -1919,6 +1919,18 @@ function saveAirports() {
 const EDGE_URL = 'https://zkilbgilzoxlxbyzyqgn.supabase.co/functions/v1';
 const atisJobs = {}; // icao → { job_id, status, realtimeSub }
 
+const _DMAP = {ZERO:'0',ONE:'1',TWO:'2',THREE:'3',FOUR:'4',FIVE:'5',SIX:'6',SEVEN:'7',EIGHT:'8',NINER:'9',NINE:'9'};
+const _DWORDS = Object.keys(_DMAP).join('|');
+const _SEQ_RE = new RegExp(`\\b((?:${_DWORDS})(?:\\s+(?:${_DWORDS}))*)(?:\\s+THOUSAND)?\\b`, 'g');
+function normalizeTranscript(text) {
+  return text.toUpperCase().replace(_SEQ_RE, m => {
+    const hasT = m.trimEnd().toUpperCase().endsWith('THOUSAND');
+    const words = m.replace(/\s*THOUSAND\s*$/i, '').trim().split(/\s+/);
+    const digits = words.map(w => _DMAP[w] ?? w).join('');
+    return hasT ? String(parseInt(digits) * 1000) : digits;
+  }).replace(/\bAND\s+(\d)/g, '$1');
+}
+
 function isCacheValid(fetchedAt) {
   const fetched = new Date(fetchedAt);
   const now = new Date();
@@ -2046,8 +2058,8 @@ function phoneAtisStatusHtml(icao) {
       </div>`;
     }
     if (job.transcription) {
-      html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Raw transcript</summary>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${job.transcription}</div></details>`;
+      html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Transcript</summary>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${normalizeTranscript(job.transcription)}</div></details>`;
     }
   }
 
