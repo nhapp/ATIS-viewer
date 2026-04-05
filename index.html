@@ -994,7 +994,7 @@ function runwayWindViz(icao, wind, confirmedRwy = null, forceConfirmed = false) 
   return runwayWindSvg(icao, Math.round(bestRwy / 10) || 36, bestRwy, wDir, wSpd, forceConfirmed);
 }
 
-function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = false) {
+function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = false, runwayData = null) {
   const alpha = windSpd > 0 ? normalizeAngle(windDir - rwyHeading) : 0;
   const rad   = alpha * Math.PI / 180;
   const xw    = windSpd * Math.sin(rad);   // + = from right
@@ -1032,8 +1032,23 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = fa
   return `
   <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;">
     <div style="align-self:flex-start;margin-bottom:4px">
-      <div class="data-label" style="margin-bottom:2px">${confirmed ? 'Confirmed Runway' : 'Suggested Runway'}</div>
-      <div style="color:var(--accent);font-size:32px;font-weight:900;letter-spacing:5px;line-height:1">${String(rwyNum).padStart(2,'0')}</div>
+      ${(() => {
+        const chk = `<span style="font-size:9px;margin-left:3px;opacity:0.85">✓</span>`;
+        if (runwayData && confirmed && (runwayData.arr.length || runwayData.dep.length)) {
+          const { arr, dep } = runwayData;
+          const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
+          let h = `<div class="data-label" style="margin-bottom:5px">Confirmed Runway</div>`;
+          if (isCombined) {
+            h += `<div style="display:flex;flex-wrap:wrap;gap:4px">${arr.map(r => `<span class="runway-tag combined" style="font-size:13px;padding:3px 9px">${r}${chk}</span>`).join('')}</div>`;
+          } else {
+            if (arr.length) h += `<div style="font-size:10px;color:var(--text-dim);letter-spacing:.5px;margin-bottom:3px">ARR</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">${arr.map(r => `<span class="runway-tag" style="font-size:12px;padding:3px 8px">${r}${chk}</span>`).join('')}</div>`;
+            if (dep.length) h += `<div style="font-size:10px;color:var(--text-dim);letter-spacing:.5px;margin-bottom:3px">DEP</div><div style="display:flex;flex-wrap:wrap;gap:3px">${dep.map(r => `<span class="runway-tag dep" style="font-size:12px;padding:3px 8px">${r}${chk}</span>`).join('')}</div>`;
+          }
+          return h;
+        }
+        return `<div class="data-label" style="margin-bottom:2px">${confirmed ? 'Confirmed Runway' : 'Suggested Runway'}</div>
+          <div style="color:var(--accent);font-size:32px;font-weight:900;letter-spacing:5px;line-height:1">${String(rwyNum).padStart(2,'0')}</div>`;
+      })()}
     </div>
     <svg width="150" height="122" viewBox="0 0 200 163" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -1603,7 +1618,7 @@ function entryHtml(entry, icao = '') {
       const isVRB = w?.dir === 'VRB';
       const wDir = (!w || w.dir === null || isVRB) ? 0 : (parseInt(w.dir) || 0);
       const wSpd = (!w || w.dir === null || isVRB) ? 0 : (w.spd || 0);
-      viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd, true); // D-ATIS confirmed runway
+      viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd, true, entry.runways); // D-ATIS confirmed runway
     } else {
       viz = runwayWindViz(icao, entry.wind, arrRwy || null, !!arrRwy);
     }
@@ -1627,10 +1642,10 @@ function entryHtml(entry, icao = '') {
       ${windHtml(entry.wind)}
     </div>
 
-    <div class="data-section">
+    ${activeH === null ? `<div class="data-section">
       ${runwayLabel ? `<div class="data-label">${runwayLabel}</div>` : ''}
       ${runwayHtml(entry.runways)}
-    </div>
+    </div>` : ''}
 
     <div class="data-section">
       <div class="data-label">Altimeter</div>
