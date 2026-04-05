@@ -1934,16 +1934,31 @@ function isWeatherOnly(type) {
   return type && type !== 'atis';
 }
 
-const _DMAP = {ZERO:'0',ONE:'1',TWO:'2',THREE:'3',FOUR:'4',FIVE:'5',SIX:'6',SEVEN:'7',EIGHT:'8',NINER:'9',NINE:'9'};
-const _DWORDS = Object.keys(_DMAP).join('|');
-const _SEQ_RE = new RegExp(`\\b((?:${_DWORDS})(?:\\s+(?:${_DWORDS}))*)(?:\\s+THOUSAND)?\\b`, 'g');
+const _NW = {ZERO:0,ONE:1,TWO:2,THREE:3,FOUR:4,FIVE:5,SIX:6,SEVEN:7,EIGHT:8,NINER:9,NINE:9,TEN:10,ELEVEN:11,TWELVE:12,THIRTEEN:13,FOURTEEN:14,FIFTEEN:15,SIXTEEN:16,SEVENTEEN:17,EIGHTEEN:18,NINETEEN:19,TWENTY:20,THIRTY:30,FORTY:40,FIFTY:50,SIXTY:60,SEVENTY:70,EIGHTY:80,NINETY:90};
+const _ND = 'ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE';
+const _NA = _ND + '|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY';
+const _NT = 'TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY';
+const _NTe = 'TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN';
+const _NO = 'ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE';
+const _nv = s => s.trim().split(/\s+/).reduce((n,w) => n + (_NW[w]||0), 0);
+const _nd = s => s.trim().split(/\s+/).map(w => String(_NW[w]!==undefined?_NW[w]:w)).join('');
 function normalizeTranscript(text) {
-  return text.toUpperCase().replace(_SEQ_RE, m => {
-    const hasT = m.trimEnd().toUpperCase().endsWith('THOUSAND');
-    const words = m.replace(/\s*THOUSAND\s*$/i, '').trim().split(/\s+/);
-    const digits = words.map(w => _DMAP[w] ?? w).join('');
-    return hasT ? String(parseInt(digits) * 1000) : digits;
-  }).replace(/\bAND\s+(\d)/g, '$1');
+  let t = text.toUpperCase();
+  // decimal point
+  t = t.replace(new RegExp(`\\b((?:${_ND})(?:\\s+(?:${_ND}))*)\\s+POINT\\s+((?:${_ND})(?:\\s+(?:${_ND}))*)\\b`,'g'),(_,l,r)=>`${_nd(l)}.${_nd(r)}`);
+  // N THOUSAND N HUNDRED [AND N]
+  t = t.replace(new RegExp(`\\b((?:${_NA})(?:\\s+(?:${_NA}))*?)\\s+THOUSAND\\s+((?:${_NA})(?:\\s+(?:${_NA}))*?)\\s+HUNDRED(?:\\s+AND\\s+((?:${_NA})(?:\\s+(?:${_NA}))*?))?\\b`,'g'),(_,th,hu,re)=>String(_nv(th)*1000+_nv(hu)*100+(re?_nv(re):0)));
+  // N THOUSAND [AND N]
+  t = t.replace(new RegExp(`\\b((?:${_NA})(?:\\s+(?:${_NA}))*?)\\s+THOUSAND(?:\\s+(?:AND\\s+)?((?:${_NA})(?:\\s+(?:${_NA}))*?))?\\b`,'g'),(_,th,re)=>String(_nv(th)*1000+(re?_nv(re):0)));
+  // N HUNDRED [AND N]
+  t = t.replace(new RegExp(`\\b((?:${_NA})(?:\\s+(?:${_NA}))*?)\\s+HUNDRED(?:\\s+(?:AND\\s+)?((?:${_NA})(?:\\s+(?:${_NA}))*?))?\\b`,'g'),(_,hu,re)=>String(_nv(hu)*100+(re?_nv(re):0)));
+  // TENS + ONES
+  t = t.replace(new RegExp(`\\b(${_NT})\\s+(${_NO})\\b`,'g'),(_,tens,ones)=>String((_NW[tens]||0)+(_NW[ones]||0)));
+  // single TENS or TEEN
+  t = t.replace(new RegExp(`\\b(${_NT}|${_NTe})\\b`,'g'),(_,w)=>String(_NW[w]));
+  // pure digit sequences → digit-by-digit
+  t = t.replace(new RegExp(`\\b((?:${_ND})(?:\\s+(?:${_ND}))*)\\b`,'g'),(_,seq)=>_nd(seq));
+  return t;
 }
 
 function isCacheValid(fetchedAt) {
