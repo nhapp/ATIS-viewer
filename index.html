@@ -1571,18 +1571,19 @@ function runwayHtml(runways) {
   if (!arr.length && !dep.length) return `<span style="color:var(--text-dim);font-size:13px">See raw ATIS</span>`;
 
   const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
+  const chk = `<span style="font-size:10px;margin-left:4px;opacity:0.8">✓</span>`;
   if (isCombined) {
-    return `<div class="runway-tags">${arr.map(r => `<span class="runway-tag combined">${r}</span>`).join('')}</div>`;
+    return `<div class="runway-tags">${arr.map(r => `<span class="runway-tag combined">${r}${chk}</span>`).join('')}</div>`;
   }
 
   let html = '';
   if (arr.length) {
     html += `<div class="data-label" style="margin-bottom:6px">Arrivals</div>
-             <div class="runway-tags" style="margin-bottom:10px">${arr.map(r => `<span class="runway-tag">${r}</span>`).join('')}</div>`;
+             <div class="runway-tags" style="margin-bottom:10px">${arr.map(r => `<span class="runway-tag">${r}${chk}</span>`).join('')}</div>`;
   }
   if (dep.length) {
     html += `<div class="data-label" style="margin-bottom:6px">Departures</div>
-             <div class="runway-tags">${dep.map(r => `<span class="runway-tag dep">${r}</span>`).join('')}</div>`;
+             <div class="runway-tags">${dep.map(r => `<span class="runway-tag dep">${r}${chk}</span>`).join('')}</div>`;
   }
   return html;
 }
@@ -2070,7 +2071,7 @@ function phoneAtisStatusHtml(icao) {
     if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
     if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
     if (p.altimeter)  html += `<div><span class="data-label">ALTIMETER</span> A${p.altimeter}</div>`;
-    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> ${p.runway}</div>`;
+    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> ${p.runway} <span style="color:#64ffda;font-size:11px">✓</span></div>`;
     html += `</div>`;
     if (job.audioUrl) {
       html += `<div style="margin-top:8px">
