@@ -1033,11 +1033,11 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = fa
   <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;">
     <div style="align-self:flex-start;margin-bottom:4px">
       ${(() => {
-        const chk = `<span style="font-size:9px;margin-left:3px;opacity:0.85">✓</span>`;
+        const chk = `<span style="font-size:14px;margin-left:4px;opacity:0.9">✓</span>`;
         if (runwayData && confirmed && (runwayData.arr.length || runwayData.dep.length)) {
           const { arr, dep } = runwayData;
           const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
-          let h = `<div class="data-label" style="margin-bottom:5px">Confirmed Runway</div>`;
+          let h = `<div class="data-label" style="margin-bottom:5px">Runway</div>`;
           if (isCombined) {
             h += `<div style="display:flex;flex-wrap:wrap;gap:4px">${arr.map(r => `<span class="runway-tag combined" style="font-size:13px;padding:3px 9px">${r}${chk}</span>`).join('')}</div>`;
           } else {
@@ -1046,7 +1046,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = fa
           }
           return h;
         }
-        return `<div class="data-label" style="margin-bottom:2px">${confirmed ? 'Confirmed Runway' : 'Suggested Runway'}</div>
+        return `<div class="data-label" style="margin-bottom:2px">${confirmed ? 'Runway' : 'Suggested Runway'}</div>
           <div style="color:var(--accent);font-size:32px;font-weight:900;letter-spacing:5px;line-height:1">${String(rwyNum).padStart(2,'0')}</div>`;
       })()}
     </div>
@@ -1586,7 +1586,7 @@ function runwayHtml(runways) {
   if (!arr.length && !dep.length) return `<span style="color:var(--text-dim);font-size:13px">See raw ATIS</span>`;
 
   const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
-  const chk = `<span style="font-size:10px;margin-left:4px;opacity:0.8">✓</span>`;
+  const chk = `<span style="font-size:14px;margin-left:4px;opacity:0.9">✓</span>`;
   if (isCombined) {
     return `<div class="runway-tags">${arr.map(r => `<span class="runway-tag combined">${r}${chk}</span>`).join('')}</div>`;
   }
@@ -2086,7 +2086,7 @@ function phoneAtisStatusHtml(icao) {
     if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
     if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
     if (p.altimeter)  html += `<div><span class="data-label">ALTIMETER</span> A${p.altimeter}</div>`;
-    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> ${p.runway} <span style="color:#64ffda;font-size:11px">✓</span></div>`;
+    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> ${p.runway} <span style="color:#64ffda;font-size:14px">✓</span></div>`;
     html += `</div>`;
     if (job.audioUrl) {
       html += `<div style="margin-top:8px">
