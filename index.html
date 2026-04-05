@@ -965,11 +965,11 @@ function airportLayoutSvg(icao, activeRwyHeading) {
   </svg>`;
 }
 
-function runwayWindViz(icao, wind, confirmedRwy = null) {
+function runwayWindViz(icao, wind, confirmedRwy = null, forceConfirmed = false) {
   const runways = RUNWAY_DATA[icao];
   if (!runways || !wind) return '';
   if (wind.dir === null) {
-    return runwayWindSvg(icao, Math.round(runways[0] / 10), runways[0], 0, 0, !!confirmedRwy);
+    return runwayWindSvg(icao, Math.round(runways[0] / 10), runways[0], 0, 0, !!confirmedRwy || forceConfirmed);
   }
   if (wind.dir === 'VRB') return `<div style="font-size:12px;color:var(--text-dim);padding:6px 0">Variable wind — runway not deterministic</div>`;
 
@@ -991,7 +991,7 @@ function runwayWindViz(icao, wind, confirmedRwy = null) {
     if (hw > bestHW) { bestHW = hw; bestRwy = rh; }
   }
 
-  return runwayWindSvg(icao, Math.round(bestRwy / 10) || 36, bestRwy, wDir, wSpd, false);
+  return runwayWindSvg(icao, Math.round(bestRwy / 10) || 36, bestRwy, wDir, wSpd, forceConfirmed);
 }
 
 function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = false) {
@@ -1605,7 +1605,7 @@ function entryHtml(entry, icao = '') {
       const wSpd = (!w || w.dir === null || isVRB) ? 0 : (w.spd || 0);
       viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd, true); // D-ATIS confirmed runway
     } else {
-      viz = runwayWindViz(icao, entry.wind);
+      viz = runwayWindViz(icao, entry.wind, arrRwy || null, !!arrRwy);
     }
   }
   const layoutSvg = icao ? airportLayoutSvg(icao, activeH) : '';
