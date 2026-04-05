@@ -745,7 +745,7 @@ const RUNWAY_DATA = {
   KLAX:[60,70,240,250], KVNY:[160,340], KBUR:[150,330], KLGB:[120,300],
   KSNA:[200,20], KONT:[70,250], KPSP:[130,310], KSAN:[270,90], KSMO:[210,30],
   // Nevada / Arizona
-  KLAS:[70,190,250,10], KRNO:[160,340,70,250], KPHX:[80,260], KTUS:[110,290,30,210],
+  KLAS:[70,190,250,10], KRNO:[160,340,70,250], KTRK:[100,280], KPHX:[80,260], KTUS:[110,290,30,210],
   KSDL:[210,30],
   // Mountain
   KDEN:[70,160,250,340], KCOS:[120,300], KSLC:[160,340], KBOI:[100,280,30,210],
@@ -809,7 +809,7 @@ const TZ_MAP = {
   KLAS:'America/Los_Angeles',KSAN:'America/Los_Angeles',KLAX:'America/Los_Angeles',
   KBUR:'America/Los_Angeles',KLGB:'America/Los_Angeles',KSNA:'America/Los_Angeles',
   KONT:'America/Los_Angeles',KSMF:'America/Los_Angeles',KFAT:'America/Los_Angeles',
-  KRNO:'America/Los_Angeles',
+  KRNO:'America/Los_Angeles', KTRK:'America/Los_Angeles',
   // Mountain
   KDEN:'America/Denver',KSLC:'America/Denver',KABQ:'America/Denver',
   KCOS:'America/Denver',KGJT:'America/Denver',
@@ -1190,6 +1190,7 @@ const AIRPORTS = [
   ['KLAS','Harry Reid Intl','Las Vegas, NV','LAS'],
   ['KHND','Henderson Executive','Las Vegas, NV'],
   ['KRNO','Reno-Tahoe Intl','Reno, NV','RNO'],
+  ['KTRK','Truckee Tahoe Airport','Truckee, CA','TKF'],
   ['KSEA','Seattle-Tacoma Intl','Seattle, WA','SEA'],
   ['KBFI','Boeing Field / King County','Seattle, WA'],
   ['KPAE','Paine Field','Everett, WA','PAE'],
@@ -2003,11 +2004,12 @@ function isCacheValid(fetchedAt) {
 }
 
 async function checkStationType(icao) {
-  if (stationTypes[icao]) return;
+  if (Object.prototype.hasOwnProperty.call(stationTypes, icao)) return;
   const res = await sb(`atis_phones?icao=eq.${icao}&select=type`);
   if (!res?.ok) return;
   const [row] = await res.json();
-  if (row?.type) { stationTypes[icao] = row.type; renderCards(); }
+  stationTypes[icao] = row?.type ?? null; // null = checked, not in DB (still show button)
+  renderCards();
 }
 
 async function checkAtisCache(icao) {
@@ -2110,8 +2112,9 @@ function supabaseRealtime() {
 function phoneAtisStatusHtml(icao) {
   const job = atisJobs[icao];
   if (!job) {
-    const t = stationTypes[icao];
-    if (!t) return '';
+    // Wait until checkStationType has run; undefined = still in flight
+    if (!Object.prototype.hasOwnProperty.call(stationTypes, icao)) return '';
+    const t = stationTypes[icao]; // null means not in atis_phones; still show button
     const label = isWeatherOnly(t) ? 'Retrieve AWOS' : 'Retrieve Current ATIS';
     return `<div style="margin-bottom:10px">
       <button onclick="fetchPhoneAtis('${icao}')"
