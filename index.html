@@ -965,17 +965,24 @@ function airportLayoutSvg(icao, activeRwyHeading) {
   </svg>`;
 }
 
-function runwayWindViz(icao, wind) {
+function runwayWindViz(icao, wind, confirmedRwy = null) {
   const runways = RUNWAY_DATA[icao];
   if (!runways || !wind) return '';
   if (wind.dir === null) {
-    // Calm — pick first runway, show calm message
-    return runwayWindSvg(icao, Math.round(runways[0] / 10), runways[0], 0, 0);
+    return runwayWindSvg(icao, Math.round(runways[0] / 10), runways[0], 0, 0, !!confirmedRwy);
   }
   if (wind.dir === 'VRB') return `<div style="font-size:12px;color:var(--text-dim);padding:6px 0">Variable wind — runway not deterministic</div>`;
 
   const wDir = parseInt(wind.dir);
   const wSpd = wind.spd || 0;
+
+  // If phone ATIS confirmed a specific runway, use it
+  if (confirmedRwy) {
+    const confirmedH = rwyDesignatorToHeading(icao, confirmedRwy);
+    if (confirmedH !== null) {
+      return runwayWindSvg(icao, Math.round(confirmedH / 10) || 36, confirmedH, wDir, wSpd, true);
+    }
+  }
 
   // Pick runway end with max headwind component
   let bestRwy = runways[0], bestHW = -Infinity;
@@ -984,10 +991,10 @@ function runwayWindViz(icao, wind) {
     if (hw > bestHW) { bestHW = hw; bestRwy = rh; }
   }
 
-  return runwayWindSvg(icao, Math.round(bestRwy / 10) || 36, bestRwy, wDir, wSpd);
+  return runwayWindSvg(icao, Math.round(bestRwy / 10) || 36, bestRwy, wDir, wSpd, false);
 }
 
-function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
+function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = false) {
   const alpha = windSpd > 0 ? normalizeAngle(windDir - rwyHeading) : 0;
   const rad   = alpha * Math.PI / 180;
   const xw    = windSpd * Math.sin(rad);   // + = from right
@@ -1048,7 +1055,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd) {
       <rect x="104" y="104" width="5" height="5" rx="1" fill="#ffffff40"/>
       <!-- Runway numbers -->
       <text x="100" y="24" text-anchor="middle" fill="#ffffffa0" font-size="13" font-family="monospace" font-weight="bold">${oppLabel}</text>
-      <text x="100" y="126" text-anchor="middle" fill="#ffffffa0" font-size="13" font-family="monospace" font-weight="bold">RWY ${rwyLabel}</text>
+      <text x="100" y="126" text-anchor="middle" fill="#ffffffa0" font-size="13" font-family="monospace" font-weight="bold">RWY ${rwyLabel}${confirmed ? `<tspan fill="#64ffda" font-size="11"> ✓</tspan>` : ''}</text>
 
       <!-- Aircraft (top-down, nose pointing UP = into approach) -->
       <rect  x="98"  y="72"  width="4"  height="20" rx="2"   fill="#ddeeff"/>
@@ -1595,7 +1602,7 @@ function entryHtml(entry, icao = '') {
       const isVRB = w?.dir === 'VRB';
       const wDir = (!w || w.dir === null || isVRB) ? 0 : (parseInt(w.dir) || 0);
       const wSpd = (!w || w.dir === null || isVRB) ? 0 : (w.spd || 0);
-      viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd);
+      viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd, true); // D-ATIS confirmed runway
     } else {
       viz = runwayWindViz(icao, entry.wind);
     }
@@ -1732,7 +1739,8 @@ function renderCard(icao) {
             </div>
           </div>
           ${(() => {
-            const viz = runwayWindViz(icao, mt.wind);
+            const phoneRwy = atisJobs[icao]?.parsed?.runway || null;
+            const viz = runwayWindViz(icao, mt.wind, phoneRwy);
             const rwyData = RUNWAY_DATA[icao];
             let activeH = null;
             if (rwyData && mt.wind && mt.wind.dir !== null && mt.wind.dir !== 'VRB') {
