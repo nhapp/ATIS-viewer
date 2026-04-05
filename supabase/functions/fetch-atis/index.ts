@@ -69,7 +69,7 @@ serve(async (req) => {
     .maybeSingle()
 
   if (!phone) {
-    return json({ status: 'no_phone', error: 'No ATIS phone number on file for this airport' }, 404)
+    return json({ status: 'no_phone', error: 'No ATIS phone number on file for this airport' })
   }
 
   // 4. Create job

@@ -1913,7 +1913,7 @@ async function fetchPhoneAtis(icao) {
     body: JSON.stringify({ icao, session_id: SESSION_ID }),
   }).catch(() => null);
 
-  if (!res?.ok) {
+  if (!res) {
     atisJobs[icao] = { status: 'error', error: 'Could not reach server' };
     renderCards();
     return;
