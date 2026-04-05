@@ -1521,7 +1521,7 @@ async function loadAirport(icao, force = false) {
 
     cache[icao] = { loading: false, error: null, data: result, lastFetched: new Date() };
     sbTrackLookup(icao, result.hasDatis ? 'datis' : 'metar');
-    if (!result.hasDatis) checkAtisCache(icao);
+    if (!result.hasDatis) { checkAtisCache(icao); checkStationType(icao); }
   } catch (err) {
    cache[icao] = { loading: false, error: err.message, data: null, lastFetched: new Date() };
   }
@@ -1691,12 +1691,15 @@ function renderCard(icao) {
       const visStr  = mt.visibility != null ? `${mt.visibility} SM` : 'N/A';
       body = `
         <div class="no-datis-banner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <span>No D-ATIS</span>
+          <div>
+            <span>No D-ATIS</span>
+            ${isWeatherOnly(stationTypes[icao]) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px">AWOS/ASOS only · Weather data, no runway information</div>` : ''}
+          </div>
           ${(!atisJobs[icao] || atisJobs[icao].status === 'error')
             ? `<button onclick="fetchPhoneAtis('${icao}')"
                  style="font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--accent);
                         background:transparent;color:var(--accent);cursor:pointer;letter-spacing:.5px">
-                 Retrieve Current ATIS
+                 ${isWeatherOnly(stationTypes[icao]) ? 'Retrieve AWOS' : 'Retrieve Current ATIS'}
                </button>`
             : ''}
         </div>
@@ -1917,7 +1920,12 @@ function saveAirports() {
 // ─── Phone ATIS (Twilio + Whisper) ───────────────────────────────────────────
 
 const EDGE_URL = 'https://zkilbgilzoxlxbyzyqgn.supabase.co/functions/v1';
-const atisJobs = {}; // icao → { job_id, status, realtimeSub }
+const atisJobs = {};    // icao → { job_id, status, stationType, ... }
+const stationTypes = {}; // icao → phone type pre-loaded on card load
+
+function isWeatherOnly(type) {
+  return type && type !== 'atis';
+}
 
 const _DMAP = {ZERO:'0',ONE:'1',TWO:'2',THREE:'3',FOUR:'4',FIVE:'5',SIX:'6',SEVEN:'7',EIGHT:'8',NINER:'9',NINE:'9'};
 const _DWORDS = Object.keys(_DMAP).join('|');
@@ -1938,6 +1946,14 @@ function isCacheValid(fetchedAt) {
   thisHour45.setMinutes(45, 0, 0);
   const lastUpdate = now >= thisHour45 ? thisHour45 : new Date(thisHour45 - 3_600_000);
   return fetched > lastUpdate;
+}
+
+async function checkStationType(icao) {
+  if (stationTypes[icao]) return;
+  const res = await sb(`atis_phones?icao=eq.${icao}&select=type`);
+  if (!res?.ok) return;
+  const [row] = await res.json();
+  if (row?.type) { stationTypes[icao] = row.type; renderCards(); }
 }
 
 async function checkAtisCache(icao) {
@@ -1982,7 +1998,8 @@ async function fetchPhoneAtis(icao) {
   }
 
   if (data.job_id) {
-    atisJobs[icao] = { status: data.status, job_id: data.job_id };
+    if (data.station_type) stationTypes[icao] = data.station_type;
+    atisJobs[icao] = { status: data.status, job_id: data.job_id, stationType: data.station_type };
     renderCards();
     subscribeToAtisJob(icao, data.job_id);
   }
@@ -2027,12 +2044,14 @@ function phoneAtisStatusHtml(icao) {
   const job = atisJobs[icao];
   if (!job) return '';
 
+  const weatherOnly = isWeatherOnly(job.stationType || stationTypes[icao]);
+  const stationLabel = weatherOnly ? 'AWOS' : 'ATIS';
   const STATUS_LABELS = {
-    calling:      { icon: '📞', text: 'Retrieving ATIS…',          color: '#ffb347' },
-    transcribing: { icon: '🎙️', text: 'Transcribing audio…',       color: '#ffb347' },
-    complete:     { icon: '✅', text: `ATIS Current${job.parsed?.code ? ` [${job.parsed.code}]` : ''}`, color: '#64ffda' },
-    error:        { icon: '⚠️', text: 'ATIS fetch failed',          color: '#ff6b6b' },
-    no_phone:     { icon: '📵', text: 'No phone ATIS on file',      color: 'var(--text-dim)' },
+    calling:      { icon: '📞', text: `Retrieving ${stationLabel}…`,  color: '#ffb347' },
+    transcribing: { icon: '🎙️', text: 'Transcribing audio…',          color: '#ffb347' },
+    complete:     { icon: '✅', text: `${stationLabel} Current${job.parsed?.code ? ` [${job.parsed.code}]` : ''}`, color: '#64ffda' },
+    error:        { icon: '⚠️', text: `${stationLabel} fetch failed`,  color: '#ff6b6b' },
+    no_phone:     { icon: '📵', text: 'No phone ATIS on file',         color: 'var(--text-dim)' },
   };
 
   const s = STATUS_LABELS[job.status];
@@ -2044,6 +2063,7 @@ function phoneAtisStatusHtml(icao) {
   if (job.status === 'complete' && job.parsed) {
     const p = job.parsed;
     html += `<div style="margin-top:8px;font-size:13px;color:var(--text)">`;
+    if (weatherOnly) html += `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;font-style:italic">Weather data only · No runway or traffic information</div>`;
     if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}</div>`;
     if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
     if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;

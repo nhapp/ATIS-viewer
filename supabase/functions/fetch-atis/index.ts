@@ -120,5 +120,5 @@ serve(async (req) => {
 
   await supabase.from('atis_jobs').update({ call_sid: call.sid }).eq('id', job.id)
 
-  return json({ status: 'calling', job_id: job.id })
+  return json({ status: 'calling', job_id: job.id, station_type: phone.type })
 })
