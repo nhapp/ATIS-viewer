@@ -1981,7 +1981,7 @@ function phoneAtisStatusHtml(icao) {
   const STATUS_LABELS = {
     calling:      { icon: '📞', text: 'Retrieving ATIS…',          color: '#ffb347' },
     transcribing: { icon: '🎙️', text: 'Transcribing audio…',       color: '#ffb347' },
-    complete:     { icon: '✅', text: 'ATIS received',              color: '#64ffda' },
+    complete:     { icon: '✅', text: `ATIS Current${job.parsed?.time ? ` [${job.parsed.time}]` : ''}`, color: '#64ffda' },
     error:        { icon: '⚠️', text: 'ATIS fetch failed',          color: '#ff6b6b' },
     no_phone:     { icon: '📵', text: 'No phone ATIS on file',      color: 'var(--text-dim)' },
   };

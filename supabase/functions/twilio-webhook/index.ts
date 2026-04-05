@@ -186,8 +186,12 @@ function parseAtis(text: string) {
   const tempM = t.match(/TEMPERATURE\s+(\d+)/)
   const dewM  = t.match(/DEW\s*POINT\s+(\d+)|DEWPOINT\s+(\d+)/)
 
+  // ATIS time e.g. "TIME 0247 ZULU" → "0247Z"
+  const timeM = t.match(/TIME\s+(\d{4})\s*(?:ZULU|Z\b)/)
+
   return {
     code:        codeM?.[1] ?? null,
+    time:        timeM ? `${timeM[1]}Z` : null,
     wind,
     visibility:  visM?.[1] ?? null,
     ceiling,
