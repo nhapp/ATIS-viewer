@@ -1677,12 +1677,12 @@ function renderCard(icao) {
       const visStr  = mt.visibility != null ? `${mt.visibility} SM` : 'N/A';
       body = `
         <div class="no-datis-banner" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <span>No D-ATIS — METAR only · Runway in use not available</span>
+          <span>No D-ATIS</span>
           ${(!atisJobs[icao] || atisJobs[icao].status === 'error')
             ? `<button onclick="fetchPhoneAtis('${icao}')"
                  style="font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--accent);
                         background:transparent;color:var(--accent);cursor:pointer;letter-spacing:.5px">
-                 📞 Fetch ATIS
+                 Retrieve Current ATIS
                </button>`
             : ''}
         </div>
