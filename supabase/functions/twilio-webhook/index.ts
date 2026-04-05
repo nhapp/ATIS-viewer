@@ -74,11 +74,24 @@ serve(async (req) => {
     const { text: transcription } = await whisperResp.json()
     const parsed = parseAtis(transcription)
 
+    // Upload MP3 to Supabase Storage for playback
+    let audioUrl: string | null = null
+    try {
+      const storagePath = `${job.icao}/${job.id}.mp3`
+      await supabase.storage.from('atis-recordings').upload(storagePath, audioBytes, {
+        contentType: 'audio/mpeg',
+        upsert: true,
+      })
+      const { data: urlData } = supabase.storage.from('atis-recordings').getPublicUrl(storagePath)
+      audioUrl = urlData.publicUrl
+    } catch (_) { /* non-fatal — audio playback just won't be available */ }
+
     // Update cache
     await supabase.from('atis_cache').upsert({
       icao:          job.icao,
       transcription,
       parsed,
+      audio_url:     audioUrl,
       fetched_at:    new Date().toISOString(),
     })
 
@@ -87,6 +100,7 @@ serve(async (req) => {
       status:       'complete',
       transcription,
       parsed,
+      audio_url:    audioUrl,
       completed_at: new Date().toISOString(),
     }).eq('id', job.id)
 

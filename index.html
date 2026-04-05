@@ -1514,6 +1514,7 @@ async function loadAirport(icao, force = false) {
 
     cache[icao] = { loading: false, error: null, data: result, lastFetched: new Date() };
     sbTrackLookup(icao, result.hasDatis ? 'datis' : 'metar');
+    if (!result.hasDatis) checkAtisCache(icao);
   } catch (err) {
    cache[icao] = { loading: false, error: err.message, data: null, lastFetched: new Date() };
   }
@@ -1774,10 +1775,11 @@ function renderCard(icao) {
           ${city ? `<div class="airport-city">${city}</div>` : ''}
         </div>
         <div class="card-actions">
-          <a class="liveatc-btn" href="https://www.liveatc.net/search/?icao=${icao}" target="_blank" rel="noopener" title="Listen on LiveATC">
+          <a class="liveatc-btn" href="https://www.airnav.com/airport/${icao}" target="_blank" rel="noopener" title="Airport Information">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="8" stroke-width="3" stroke-linecap="round"></line>
+              <line x1="12" y1="12" x2="12" y2="16" stroke-linecap="round"></line>
             </svg>
           </a>
           <button class="refresh-btn ${c.loading ? 'spinning' : ''}" onclick="loadAirport('${icao}', true)" title="Refresh">
@@ -1902,6 +1904,25 @@ function saveAirports() {
 const EDGE_URL = 'https://zkilbgilzoxlxbyzyqgn.supabase.co/functions/v1';
 const atisJobs = {}; // icao → { job_id, status, realtimeSub }
 
+function isCacheValid(fetchedAt) {
+  const fetched = new Date(fetchedAt);
+  const now = new Date();
+  const thisHour45 = new Date(now);
+  thisHour45.setMinutes(45, 0, 0);
+  const lastUpdate = now >= thisHour45 ? thisHour45 : new Date(thisHour45 - 3_600_000);
+  return fetched > lastUpdate;
+}
+
+async function checkAtisCache(icao) {
+  if (atisJobs[icao]) return; // already have a job in progress or complete
+  const res = await sb(`atis_cache?icao=eq.${icao}&select=transcription,parsed,audio_url,fetched_at`);
+  if (!res?.ok) return;
+  const [cache] = await res.json();
+  if (!cache || !isCacheValid(cache.fetched_at)) return;
+  atisJobs[icao] = { status: 'complete', parsed: cache.parsed, transcription: cache.transcription, audioUrl: cache.audio_url };
+  renderCards();
+}
+
 async function fetchPhoneAtis(icao) {
   // Show calling status immediately
   atisJobs[icao] = { status: 'calling' };
@@ -1922,7 +1943,7 @@ async function fetchPhoneAtis(icao) {
   const data = await res.json();
 
   if (data.status === 'cached') {
-    atisJobs[icao] = { status: 'complete', parsed: data.data.parsed, transcription: data.data.transcription };
+    atisJobs[icao] = { status: 'complete', parsed: data.data.parsed, transcription: data.data.transcription, audioUrl: data.data.audio_url };
     renderCards();
     return;
   }
@@ -1956,6 +1977,7 @@ function subscribeToAtisJob(icao, jobId) {
         job_id: jobId,
         parsed: row.parsed,
         transcription: row.transcription,
+        audioUrl: row.audio_url,
         error: row.error_msg,
       };
       renderCards();
@@ -2001,6 +2023,13 @@ function phoneAtisStatusHtml(icao) {
     if (p.altimeter)  html += `<div><span class="data-label">ALTIMETER</span> A${p.altimeter}</div>`;
     if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> ${p.runway}</div>`;
     html += `</div>`;
+    if (job.audioUrl) {
+      html += `<div style="margin-top:8px">
+        <audio controls style="width:100%;height:28px;opacity:0.85">
+          <source src="${job.audioUrl}" type="audio/mpeg">
+        </audio>
+      </div>`;
+    }
     if (job.transcription) {
       html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Raw transcript</summary>
         <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${job.transcription}</div></details>`;

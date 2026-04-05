@@ -39,7 +39,7 @@ serve(async (req) => {
   // 1. Check cache
   const { data: cache } = await supabase
     .from('atis_cache')
-    .select('*')
+    .select('icao, transcription, parsed, audio_url, fetched_at')
     .eq('icao', icao.toUpperCase())
     .maybeSingle()
 
