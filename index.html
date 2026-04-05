@@ -1956,7 +1956,7 @@ function startCountdownTick() {
       const el = document.getElementById(`atis-cd-${icao}`);
       if (!el || !job.startedAt) continue;
       const secs = Math.max(0, Math.ceil((EST_WAIT_MS - (Date.now() - job.startedAt)) / 1000));
-      el.textContent = secs > 0 ? `Est wait: ${secs}s` : 'Almost ready…';
+      el.textContent = secs > 0 ? `Est wait: ${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}` : 'Almost ready…';
     }
     if (!anyActive) { clearInterval(_countdownTick); _countdownTick = null; }
   }, 1000);
@@ -2145,7 +2145,7 @@ function phoneAtisStatusHtml(icao) {
     <div style="font-size:12px;color:${s.color};letter-spacing:.5px">${s.icon} ${s.text}</div>`;
 
   if (isActive && initSecs !== null) {
-    const cdText = initSecs > 0 ? `Est wait: ${initSecs}s` : 'Almost ready…';
+    const cdText = initSecs > 0 ? `Est wait: ${String(Math.floor(initSecs/60)).padStart(2,'0')}:${String(initSecs%60).padStart(2,'0')}` : 'Almost ready…';
     html += `<div id="atis-cd-${icao}" style="font-size:11px;color:${s.color};opacity:0.75;margin-top:3px">${cdText}</div>`;
   }
 
