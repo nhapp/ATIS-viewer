@@ -1643,8 +1643,15 @@ function entryHtml(entry, icao = '') {
     </div>` : ''}
 
     ${entry.raw ? `
-    <div class="raw-text-label">Raw D-ATIS</div>
-    <div class="raw-text-block">${entry.raw}</div>` : ''}`;
+    <details style="margin-top:10px">
+      <summary class="raw-text-label" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="opacity:0.5;transition:transform .2s" class="raw-chevron">
+          <path d="M2 3 L5 7 L8 3"/>
+        </svg>
+        Raw D-ATIS
+      </summary>
+      <div class="raw-text-block" style="margin-top:6px">${entry.raw}</div>
+    </details>` : ''}`;
 }
 
 function renderCard(icao) {
