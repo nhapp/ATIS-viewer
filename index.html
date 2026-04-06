@@ -1320,19 +1320,45 @@ AIRPORTS.forEach(([icao, name, city, iata]) => {
 
 function airportInfo(icao) { return AIRPORT_MAP[icao] || null; }
 
-function searchAirports(q) {
+// Synchronous search against the hardcoded AIRPORTS array (instant, used while
+// the async Supabase query is in flight or as a fallback).
+function searchAirportsLocal(q) {
   if (!q || q.length < 2) return [];
-  q = q.toLowerCase();
+  const ql = q.toLowerCase();
   const exact = [], prefix = [], middle = [], rest = [];
   for (const [icao, name, city, iata = ''] of AIRPORTS) {
     const il = icao.toLowerCase(), nl = name.toLowerCase(), cl = city.toLowerCase(), al = iata.toLowerCase();
-    if (il === q || al === q)                                    { exact.push([icao, name, city]); continue; }
-    if (il.startsWith(q) || al.startsWith(q))                   { prefix.push([icao, name, city]); continue; }
-    if (il.includes(q) || al.includes(q))                       { middle.push([icao, name, city]); continue; }
-    if (nl.includes(q) || cl.includes(q) ||
-        nl.split(' ').some(w => w.startsWith(q)))               { rest.push([icao, name, city]); }
+    if (il === ql || al === ql)                                     { exact.push([icao, name, city]); continue; }
+    if (il.startsWith(ql) || al.startsWith(ql))                    { prefix.push([icao, name, city]); continue; }
+    if (il.includes(ql) || al.includes(ql))                        { middle.push([icao, name, city]); continue; }
+    if (nl.includes(ql) || cl.includes(ql) ||
+        nl.split(' ').some(w => w.startsWith(ql)))                 { rest.push([icao, name, city]); }
   }
   return [...exact, ...prefix, ...middle, ...rest].slice(0, 10);
+}
+
+// Async search against the Supabase `airports` table (~4,800 US airports).
+// Uses ilike for name/city and eq for ICAO, merges with local results.
+async function searchAirportsDB(q) {
+  if (!q || q.length < 2) return [];
+  const enc = encodeURIComponent(`%${q}%`);
+  // Search name, city, and exact ICAO match
+  const res = await sb(
+    `airports?or=(name.ilike.${enc},city.ilike.${enc},icao.ilike.${enc})&select=icao,name,city&limit=12`
+  ).catch(() => null);
+  if (!res?.ok) return [];
+  const rows = await res.json();
+  // Sort: exact ICAO first, then name/city prefix, then rest
+  const ql = q.toLowerCase();
+  const score = r => {
+    if (r.icao.toLowerCase() === ql) return 0;
+    if (r.icao.toLowerCase().startsWith(ql)) return 1;
+    if ((r.name || '').toLowerCase().startsWith(ql)) return 2;
+    if ((r.city || '').toLowerCase().startsWith(ql)) return 3;
+    return 4;
+  };
+  return rows.sort((a, b) => score(a) - score(b))
+             .map(r => [r.icao, r.name || '', r.city || '']);
 }
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
@@ -2197,13 +2223,10 @@ const airportInput  = document.getElementById('airportInput');
 const searchDropdown = document.getElementById('searchDropdown');
 let ddIndex = -1;
 
-airportInput.addEventListener('input', () => {
-  const q = airportInput.value.trim();
-  const results = searchAirports(q);
-  ddIndex = -1;
+let _ddSearchSeq = 0; // cancels stale async results
 
+function renderDropdown(results) {
   if (!results.length) { searchDropdown.classList.remove('visible'); return; }
-
   searchDropdown.innerHTML = results.map(([icao, name, city], i) => `
     <div class="dd-item" data-icao="${icao}" data-idx="${i}">
       <span class="dd-icao">${icao}</span>
@@ -2212,15 +2235,30 @@ airportInput.addEventListener('input', () => {
         <span class="dd-city">${city}</span>
       </div>
     </div>`).join('');
-
   searchDropdown.classList.add('visible');
-
   searchDropdown.querySelectorAll('.dd-item').forEach(el => {
-    el.addEventListener('mousedown', e => {
-      e.preventDefault();
-      selectAirport(el.dataset.icao);
-    });
+    el.addEventListener('mousedown', e => { e.preventDefault(); selectAirport(el.dataset.icao); });
   });
+}
+
+airportInput.addEventListener('input', async () => {
+  const q = airportInput.value.trim();
+  ddIndex = -1;
+  if (!q || q.length < 2) { searchDropdown.classList.remove('visible'); return; }
+
+  // Show local results immediately (no latency)
+  const local = searchAirportsLocal(q);
+  renderDropdown(local);
+
+  // Fire async DB search; use sequence number to ignore stale responses
+  const seq = ++_ddSearchSeq;
+  const db = await searchAirportsDB(q);
+  if (seq !== _ddSearchSeq) return; // a newer keystroke superseded this
+
+  // Merge: DB results first, then any local-only entries not already present
+  const seen = new Set(db.map(([icao]) => icao));
+  const merged = [...db, ...local.filter(([icao]) => !seen.has(icao))].slice(0, 10);
+  renderDropdown(merged);
 });
 
 airportInput.addEventListener('keydown', e => {

@@ -6,9 +6,10 @@ Downloads the current FAA NASR 28-day subscription and extracts every
 US airport ATIS / AWOS / ASOS phone number.
 
 Sources parsed:
-  1. AWOS.txt  — primary source for AWOS/ASOS stations (confirmed field layout)
-  2. APT_BASE.csv — ICAO identifier lookup (site_no → icao_id)
-  3. APT_RMK.csv  — airport remarks (catches ATIS phone numbers not in AWOS.txt)
+  1. AWOS.txt     — primary source for AWOS/ASOS stations (confirmed field layout)
+  2. TWR.txt      — tower facilities: dedicated ATIS phone field for towered airports
+  3. APT_BASE.csv — ICAO identifier lookup (site_no → icao_id)
+  4. APT_RMK.csv  — airport remarks (catches ATIS phone numbers not in the above)
 
 Output: SQL INSERT statements ready to paste into Supabase SQL editor.
 
@@ -126,6 +127,103 @@ def parse_awos(raw: bytes) -> dict:
 
     print(f'  AWOS.txt: {len(results)} active stations with phones', file=sys.stderr)
     return results
+
+# ── TWR.txt parser ───────────────────────────────────────────────────────────
+#
+# TWR.txt record types relevant to ATIS:
+#
+#   TWR1 — facility header
+#     Cols  1-4  : "TWR1"
+#     Cols  5-13 : Facility identifier (e.g. "SFO", "TRK")
+#     Cols 13-17 : FAA site number (links to APT)
+#     Cols 17-21 : State code
+#
+#   TWR3 — services / frequencies (one per line)
+#     Cols  1-4  : "TWR3"
+#     Cols  5-13 : Facility identifier (matches TWR1)
+#     Cols 13-30 : Frequency / service string — "ATIS 120.05" etc.
+#
+#   TWR6 — ATIS phone numbers
+#     Cols  1-4  : "TWR6"
+#     Cols  5-13 : Facility identifier (matches TWR1)
+#     Cols 13-27 : Primary phone  (14 chars)
+#     Cols 27-41 : Secondary phone (14 chars)
+#
+# Strategy: collect TWR1 facility→site_no, then match TWR6 phones to them.
+# For facilities without a TWR6 record, scan TWR3 lines for "ATIS" followed
+# by a phone pattern as a fallback.
+
+def parse_twr(raw: bytes, site_to_icao: dict, faa_to_icao: dict) -> dict:
+    """
+    Returns icao → {type:'atis', phone, city, state} for towered airports.
+
+    TWR.txt field layout (1-indexed, fixed-width):
+      TWR1  Cols 1-4   : "TWR1"
+            Cols 5-7   : Facility identifier (3 chars, e.g. "TRK", "SFO")
+            Cols 19-28 : Landing facility site number (e.g. "02366.*A")
+            Cols 33-34 : State code
+
+      TWR6  Cols 1-4   : "TWR6"
+            Cols 5-7   : Facility identifier (matches TWR1)
+            Cols 9     : Remark sequence number
+            Cols 14+   : Free-text remark — may contain ATIS phone patterns:
+                         "(ATIS PHONE NR) C805-605-2847" or
+                         "(ATIS PHONE NR) PHONE NRS 562-608-4144/4145/4146"
+
+    Only ~8 airports in the current NASR cycle have explicit ATIS phone numbers
+    in TWR6 (mostly military + major civil).  Most towered airports store ATIS
+    phones only in the FAA Chart Supplement, not in NASR.
+    """
+    text = raw.decode('latin-1', errors='replace')
+    lines = text.splitlines()
+
+    # Pass 1: facility_id → (site_no, state) from TWR1
+    facility_to_site:  dict = {}
+    facility_to_state: dict = {}
+    for line in lines:
+        if not line.startswith('TWR1') or len(line) < 34:
+            continue
+        fac_id  = line[4:8].strip()   # cols 5-7 (0-indexed 4-7)
+        site_no = line[18:28].strip() # cols 19-28 (0-indexed 18-28), e.g. "02366.*A"
+        state   = line[32:34].strip() # cols 33-34
+        if fac_id:
+            facility_to_site[fac_id]  = site_no
+            facility_to_state[fac_id] = state
+
+    # Pass 2: TWR6 remarks — look for explicit ATIS phone annotations
+    ATIS_PHONE_TWR = re.compile(
+        r'ATIS\s+PHONE[^0-9]{0,30}?(\(?\d{3}\)?[\s.\-/]\d{3}[\s.\-/]\d{4})',
+        re.IGNORECASE
+    )
+    facility_to_phone: dict = {}
+    for line in lines:
+        if not line.startswith('TWR6') or len(line) < 14:
+            continue
+        fac_id  = line[4:8].strip()
+        remark  = line[13:]
+        if 'ATIS' not in remark.upper():
+            continue
+        m = ATIS_PHONE_TWR.search(remark)
+        if not m:
+            continue
+        phone = normalize_phone(m.group(1))
+        if fac_id and phone and fac_id not in facility_to_phone:
+            facility_to_phone[fac_id] = phone
+
+    # Resolve facility → ICAO
+    results: dict = {}
+    for fac_id, phone in facility_to_phone.items():
+        site_no = facility_to_site.get(fac_id, '')
+        state   = facility_to_state.get(fac_id, '')
+        icao    = site_to_icao.get(site_no)
+        if not icao:
+            icao = faa_to_icao.get(fac_id) or derive_icao(fac_id, state)
+        if icao:
+            results[icao] = {'type': 'atis', 'phone': phone, 'city': '', 'state': state}
+
+    print(f'  TWR.txt: {len(results)} towered-airport ATIS phones', file=sys.stderr)
+    return results
+
 
 # ── APT_BASE.csv parser ───────────────────────────────────────────────────────
 # Gives us: site_no → icao_id, and faa_id → icao_id
@@ -326,16 +424,14 @@ def main():
         else:
             print('  WARNING: Neither APT_BASE.csv nor APT.txt found — ICAO lookup unavailable', file=sys.stderr)
 
-    # ── Parse AWOS.txt ────────────────────────────────────────────────────────
+    # ── Parse AWOS.txt (AWOS/ASOS weather stations) ───────────────────────────
     all_records: dict = {}
 
     awos_raw = read_file(zf, 'AWOS.txt')
     if awos_raw:
         awos_stations = parse_awos(awos_raw)
         for site_no, info in awos_stations.items():
-            # Try site_no → ICAO mapping first
             icao = site_to_icao.get(site_no)
-            # Fall back to sensor_id
             if not icao:
                 sid = info['sensor_id']
                 icao = faa_to_icao.get(sid) or derive_icao(sid, info.get('state', ''))
@@ -344,11 +440,22 @@ def main():
     else:
         print('  WARNING: AWOS.txt not found', file=sys.stderr)
 
-    # ── Parse APT_RMK.csv for ATIS phone numbers ──────────────────────────────
+    # ── Parse TWR.txt (towered-airport ATIS phones) ───────────────────────────
+    twr_raw = read_file(zf, 'TWR.txt')
+    if twr_raw:
+        twr_records = parse_twr(twr_raw, site_to_icao, faa_to_icao)
+        # TWR records take priority over AWOS for the same ICAO (towered airports
+        # with co-located ASOS should use the ATIS line, not the ASOS line)
+        for icao, info in twr_records.items():
+            all_records[icao] = info
+    else:
+        print('  WARNING: TWR.txt not found', file=sys.stderr)
+
+    # ── Parse APT_RMK.csv for ATIS phone numbers not captured above ───────────
     rmk_raw = read_file(zf, 'APT_RMK.csv')
     if rmk_raw:
         rmk_records = parse_apt_rmk(rmk_raw, faa_to_icao)
-        # Merge: AWOS records take priority (more structured)
+        # Remarks are lowest priority — fill gaps only
         for icao, info in rmk_records.items():
             if icao not in all_records:
                 all_records[icao] = info
