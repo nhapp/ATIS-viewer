@@ -639,6 +639,8 @@
     </svg>
     <span class="label">Refresh All</span>
   </button>
+
+  <div id="buildBadge" style="margin-left:auto;font-size:10px;color:var(--text-dim);opacity:0.5;font-family:monospace;letter-spacing:.5px;white-space:nowrap"></div>
 </header>
 
 <div class="disclaimer">
@@ -663,6 +665,14 @@
 </div>
 
 <script>
+const BUILD = '2026-04-07.7';
+document.getElementById('buildBadge').textContent = `build ${BUILD}`;
+
+// ─── D-ATIS airport registry ──────────────────────────────────────────────────
+// Airports confirmed to have D-ATIS are persisted across sessions so the phone
+// ATIS button is never shown for them even if the D-ATIS API is temporarily down.
+const datisAirports = new Set(JSON.parse(localStorage.getItem('atis-datis-airports') || '[]'));
+
 // ─── State ───────────────────────────────────────────────────────────────────
 
 let airports = JSON.parse(localStorage.getItem('atis-airports') || '[]');
@@ -1562,8 +1572,15 @@ async function loadAirport(icao, force = false) {
     }
 
     cache[icao] = { loading: false, error: null, data: result, lastFetched: new Date() };
+    if (result.hasDatis) {
+      // Persist so phone ATIS button stays hidden even when D-ATIS is temporarily down
+      if (!datisAirports.has(icao)) {
+        datisAirports.add(icao);
+        localStorage.setItem('atis-datis-airports', JSON.stringify([...datisAirports]));
+      }
+    }
     sbTrackLookup(icao, result.hasDatis ? 'datis' : 'metar');
-    if (!result.hasDatis) { checkAtisCache(icao); checkStationType(icao); }
+    if (!result.hasDatis && !datisAirports.has(icao)) { checkAtisCache(icao); checkStationType(icao); }
   } catch (err) {
    cache[icao] = { loading: false, error: err.message, data: null, lastFetched: new Date() };
   }
@@ -1967,7 +1984,8 @@ async function loadAvgWaitTime() {
     if (!res?.ok) return;
     const rows = await res.json();
     const durs = rows.filter(r => r.completed_at)
-      .map(r => new Date(r.completed_at) - new Date(r.created_at));
+      .map(r => new Date(r.completed_at) - new Date(r.created_at))
+      .filter(d => d > 5_000 && d < 180_000); // ignore outliers (< 5s or > 3 min)
     if (durs.length >= 2) EST_WAIT_MS = durs.reduce((a, b) => a + b, 0) / durs.length;
   } catch (_) {}
 }
@@ -1982,8 +2000,15 @@ function startCountdownTick() {
       anyActive = true;
       const el = document.getElementById(`atis-cd-${icao}`);
       if (!el || !job.startedAt) continue;
-      const secs = Math.max(0, Math.ceil((EST_WAIT_MS - (Date.now() - job.startedAt)) / 1000));
-      el.textContent = secs > 0 ? `Est wait: ${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}` : 'Almost ready…';
+      const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
+      const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
+      el.textContent = remaining > 0
+        ? `Est wait: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
+        : `Elapsed: ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+      const dbgEl = document.getElementById(`atis-dbg-elapsed-${icao}`);
+      if (dbgEl) dbgEl.textContent = `${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+      const dbgStatus = document.getElementById(`atis-dbg-status-${icao}`);
+      if (dbgStatus) dbgStatus.textContent = job.status;
     }
     if (!anyActive) { clearInterval(_countdownTick); _countdownTick = null; }
   }, 1000);
@@ -2020,13 +2045,31 @@ function normalizeTranscript(text) {
   return t;
 }
 
-function isCacheValid(fetchedAt) {
+// Type-aware cache validity (mirrors fetch-atis edge function logic)
+function isCacheValid(fetchedAt, stationType) {
   const fetched = new Date(fetchedAt);
   const now = new Date();
+  if (stationType && stationType !== 'atis') {
+    return (now - fetched) < 60 * 60 * 1000;
+  }
   const thisHour45 = new Date(now);
   thisHour45.setMinutes(45, 0, 0);
   const lastUpdate = now >= thisHour45 ? thisHour45 : new Date(thisHour45 - 3_600_000);
   return fetched > lastUpdate;
+}
+
+// Human-readable time until cache expires
+function nextRefreshText(stationType, fetchedAt) {
+  const now = new Date();
+  if (stationType && stationType !== 'atis') {
+    const expiry = new Date(new Date(fetchedAt).getTime() + 60 * 60 * 1000);
+    const minsLeft = Math.ceil((expiry - now) / 60000);
+    return minsLeft > 0 ? `Refreshes in ${minsLeft}m` : 'Refresh due';
+  }
+  const thisHour45 = new Date(now);
+  thisHour45.setMinutes(45, 0, 0);
+  const next45 = now < thisHour45 ? thisHour45 : new Date(thisHour45.getTime() + 3_600_000);
+  return `Refreshes at ${next45.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 async function checkStationType(icao) {
@@ -2046,14 +2089,17 @@ async function checkAtisCache(icao) {
   const res = await sb(`atis_cache?icao=eq.${icao}&select=transcription,parsed,audio_url,fetched_at`);
   if (!res?.ok) { delete atisJobs[icao]; renderCards(); return; }
   const [cache] = await res.json();
-  if (!cache || !isCacheValid(cache.fetched_at)) { delete atisJobs[icao]; renderCards(); return; }
+  const sType = stationTypes[icao]; // undefined is fine — defaults to ATIS behavior
+  if (!cache || !isCacheValid(cache.fetched_at, sType)) { delete atisJobs[icao]; renderCards(); return; }
   atisJobs[icao] = {
     status:        'complete',
     parsed:        cache.parsed,
     transcription: cache.transcription,
     audioUrl:      cache.audio_url,
     fetchedAt:     cache.fetched_at,
+    stationType:   sType,
   };
+  subscribeToCacheUpdates(icao);
   renderCards();
 }
 
@@ -2078,7 +2124,9 @@ async function fetchPhoneAtis(icao) {
   const data = await res.json();
 
   if (data.status === 'cached') {
-    atisJobs[icao] = { status: 'complete', parsed: data.data.parsed, transcription: data.data.transcription, audioUrl: data.data.audio_url, fetchedAt: data.data.fetched_at };
+    if (data.station_type) stationTypes[icao] = data.station_type;
+    atisJobs[icao] = { status: 'complete', parsed: data.data.parsed, transcription: data.data.transcription, audioUrl: data.data.audio_url, fetchedAt: data.data.fetched_at, stationType: data.station_type };
+    subscribeToCacheUpdates(icao);
     renderCards();
     return;
   }
@@ -2120,12 +2168,49 @@ function subscribeToAtisJob(icao, jobId) {
         error:         row.error_msg,
       };
       renderCards();
-      if (row.status === 'complete' || row.status === 'error') {
+      if (row.status === 'complete') {
+        subscribeToCacheUpdates(icao);
+        channel.unsubscribe();
+      } else if (row.status === 'error') {
         channel.unsubscribe();
       }
     })
     .subscribe();
   if (atisJobs[icao]) atisJobs[icao].realtimeSub = channel;
+}
+
+// Manually poll a job row — used by the debug panel when Realtime appears stuck
+async function checkJobStatus(icao) {
+  const job = atisJobs[icao];
+  if (!job?.job_id) return;
+  const res = await sb(`atis_jobs?id=eq.${job.job_id}&select=status,call_sid,recording_url,error_msg,transcription,parsed,audio_url,completed_at`);
+  if (!res?.ok) return;
+  const [row] = await res.json();
+  if (!row) return;
+
+  // Update pipeline stage indicators
+  const set = (id, val, ok) => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = val; el.style.color = ok ? '#64ffda' : ok === false ? '#ff6b6b' : 'var(--text-dim)'; }
+  };
+  set(`atis-dbg-status-${icao}`, row.status, row.status === 'complete' ? true : row.status === 'error' ? false : null);
+  set(`atis-dbg-call-${icao}`,   row.call_sid    ? '✓ call placed'    : '… waiting', !!row.call_sid);
+  set(`atis-dbg-rec-${icao}`,    row.recording_url ? '✓ audio recorded' : '… waiting', !!row.recording_url);
+  set(`atis-dbg-tx-${icao}`,     row.status === 'complete' ? '✓ transcribed' : row.status === 'error' ? `✗ ${row.error_msg?.split('\n')[0] ?? 'failed'}` : '… waiting',
+      row.status === 'complete' ? true : row.status === 'error' ? false : null);
+
+  if (row.status === 'complete' || row.status === 'error') {
+    atisJobs[icao] = {
+      ...job,
+      status:        row.status,
+      transcription: row.transcription,
+      parsed:        row.parsed,
+      audioUrl:      row.audio_url,
+      fetchedAt:     row.completed_at,
+      error:         row.error_msg,
+    };
+    renderCards();
+  }
 }
 
 function supabaseRealtime() {
@@ -2135,7 +2220,40 @@ function supabaseRealtime() {
   return window._sbClient;
 }
 
+// ── Shared cache via Realtime ─────────────────────────────────────────────────
+// When any user fetches ATIS for an airport, all subscribers see the update live.
+
+const _cacheChannels = {}; // icao → Realtime channel (one per airport, deduped)
+
+function subscribeToCacheUpdates(icao) {
+  if (_cacheChannels[icao]) return;
+  const channel = supabaseRealtime()
+    .channel(`atis-cache-${icao}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'atis_cache',
+      filter: `icao=eq.${icao}`,
+    }, (payload) => {
+      const row = payload.new;
+      const sType = stationTypes[icao] ?? atisJobs[icao]?.stationType ?? null;
+      if (!isCacheValid(row.fetched_at, sType)) return; // ignore stale broadcasts
+      atisJobs[icao] = {
+        status:        'complete',
+        parsed:        row.parsed,
+        transcription: row.transcription,
+        audioUrl:      row.audio_url,
+        fetchedAt:     row.fetched_at,
+        stationType:   sType,
+      };
+      renderCards();
+    })
+    .subscribe();
+  _cacheChannels[icao] = channel;
+}
+
 function phoneAtisStatusHtml(icao) {
+  if (datisAirports.has(icao)) return ''; // D-ATIS airports use the digital feed only
   const job = atisJobs[icao];
   if (!job) {
     // Wait until checkStationType has run; undefined = still in flight
@@ -2150,6 +2268,8 @@ function phoneAtisStatusHtml(icao) {
       </button>
     </div>`;
   }
+
+  if (job.status === 'no_phone') return ''; // METAR already shown; no need to advertise missing phone
 
   const weatherOnly = isWeatherOnly(job.stationType || stationTypes[icao]);
   const stationLabel = weatherOnly ? 'AWOS' : 'ATIS';
@@ -2173,15 +2293,43 @@ function phoneAtisStatusHtml(icao) {
   let html = `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.05);border:1px solid ${s.color}40">
     <div style="font-size:12px;color:${s.color};letter-spacing:.5px">${s.icon} ${s.text}</div>`;
 
-  if (isActive && initSecs !== null) {
-    const cdText = initSecs > 0 ? `Est wait: ${String(Math.floor(initSecs/60)).padStart(2,'0')}:${String(initSecs%60).padStart(2,'0')}` : 'Almost ready…';
+  if (isActive && job.startedAt) {
+    const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
+    const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
+    const cdText = remaining > 0
+      ? `Est wait: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
+      : `Elapsed: ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
     html += `<div id="atis-cd-${icao}" style="font-size:11px;color:${s.color};opacity:0.75;margin-top:3px">${cdText}</div>`;
+
+    // Debug panel (always shown for active jobs)
+    if (true) {
+      const jobId = job.job_id ? job.job_id.slice(0, 8) + '…' : '—';
+      const elStr = `${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+      html += `<details style="margin-top:6px" ${elapsed > EST_WAIT_MS / 1000 ? 'open' : ''}>
+        <summary style="font-size:10px;color:var(--text-dim);cursor:pointer;letter-spacing:.5px">DEBUG</summary>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-family:monospace;line-height:2">
+          <div>job: ${jobId}</div>
+          <div>elapsed: <span id="atis-dbg-elapsed-${icao}">${elStr}</span></div>
+          <div>status: <span id="atis-dbg-status-${icao}">${job.status}</span></div>
+          <div>① call: <span id="atis-dbg-call-${icao}">poll to check</span></div>
+          <div>② audio: <span id="atis-dbg-rec-${icao}">poll to check</span></div>
+          <div>③ transcribe: <span id="atis-dbg-tx-${icao}">poll to check</span></div>
+        </div>
+        <button onclick="checkJobStatus('${icao}')"
+          style="margin-top:4px;font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid var(--text-dim);
+                 background:transparent;color:var(--text-dim);cursor:pointer">
+          Poll job now
+        </button>
+      </details>`;
+    }
   }
 
   if (job.status === 'complete' && job.fetchedAt) {
     const ft = new Date(job.fetchedAt);
     const hhmm = ft.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    html += `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">Retrieved ${hhmm}</div>`;
+    const sType = job.stationType ?? stationTypes[icao] ?? null;
+    const nextRefresh = nextRefreshText(sType, job.fetchedAt);
+    html += `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">Retrieved ${hhmm} · ${nextRefresh}</div>`;
   }
 
   if (job.status === 'complete' && job.parsed) {

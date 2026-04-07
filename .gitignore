@@ -1,0 +1,11 @@
+# Generated SQL outputs (re-run scripts to regenerate)
+airports.sql
+dcs_phones.sql
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store

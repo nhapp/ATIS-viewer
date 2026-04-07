@@ -106,8 +106,9 @@ serve(async (req) => {
 
   } catch (err) {
     await supabase.from('atis_jobs').update({
-      status:    'error',
-      error_msg: (err as Error).message,
+      status:       'error',
+      error_msg:    (err as Error).message,
+      completed_at: new Date().toISOString(),
     }).eq('id', job.id)
   }
 
@@ -116,12 +117,6 @@ serve(async (req) => {
 
 // ── ATIS text parser ──────────────────────────────────────────────────────────
 
-// Whisper transcribes numbers as spoken words ("two eight zero").
-// Convert spoken digit sequences back to numerals before regex parsing.
-const DIGIT_WORDS: Record<string, string> = {
-  ZERO:'0', ONE:'1', TWO:'2', THREE:'3', FOUR:'4',
-  FIVE:'5', SIX:'6', SEVEN:'7', EIGHT:'8', NINER:'9', NINE:'9',
-}
 const PHONETIC: Record<string, string> = {
   ALPHA:'A', BRAVO:'B', CHARLIE:'C', DELTA:'D', ECHO:'E', FOXTROT:'F',
   GOLF:'G', HOTEL:'H', INDIA:'I', JULIET:'J', KILO:'K', LIMA:'L',
@@ -129,6 +124,21 @@ const PHONETIC: Record<string, string> = {
   SIERRA:'S', TANGO:'T', UNIFORM:'U', VICTOR:'V', WHISKEY:'W', XRAY:'X',
   YANKEE:'Y', ZULU:'Z',
 }
+
+// Number word → numeric value
+const W: Record<string, number> = {
+  ZERO:0, ONE:1, TWO:2, THREE:3, FOUR:4, FIVE:5, SIX:6, SEVEN:7, EIGHT:8, NINER:9, NINE:9,
+  TEN:10, ELEVEN:11, TWELVE:12, THIRTEEN:13, FOURTEEN:14, FIFTEEN:15,
+  SIXTEEN:16, SEVENTEEN:17, EIGHTEEN:18, NINETEEN:19,
+  TWENTY:20, THIRTY:30, FORTY:40, FIFTY:50, SIXTY:60, SEVENTY:70, EIGHTY:80, NINETY:90,
+}
+const _D  = 'ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE'
+const _A  = _D + '|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY'
+const _T  = 'TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY'
+const _Te = 'TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN'
+const _O  = 'ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE'
+const _toVal = (s: string): number => s.trim().split(/\s+/).reduce((n, w) => n + (W[w] ?? 0), 0)
+const _toDig = (s: string): string => s.trim().split(/\s+/).map(w => String(W[w] ?? w)).join('')
 
 function normalizeSpoken(raw: string): string {
   let t = raw.toUpperCase()
@@ -139,20 +149,47 @@ function normalizeSpoken(raw: string): string {
     (_, w) => `INFORMATION ${PHONETIC[w]}`
   )
 
-  // Digit-word sequences optionally ending in THOUSAND → numerals
-  // e.g. "TWO EIGHT ZERO" → "280", "ONE EIGHT THOUSAND" → "18000"
-  const dPat = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE)'
-  const seqRe = new RegExp(`\\b(${dPat}(?:\\s+${dPat})*)(?:\\s+THOUSAND)?\\b`, 'g')
-  t = t.replace(seqRe, (match) => {
-    const hasThousand = match.endsWith('THOUSAND')
-    const words = match.replace(/\s*THOUSAND$/, '').trim().split(/\s+/)
-    const digits = words.map(w => DIGIT_WORDS[w] ?? w).join('')
-    return hasThousand ? String(parseInt(digits) * 1000) : digits
-  })
+  // 1. Decimal point: digit-seq POINT digit-seq → "X.Y"  ("one two one point three" → "121.3")
+  t = t.replace(
+    new RegExp(`\\b((?:${_D})(?:\\s+(?:${_D}))*)\\s+POINT\\s+((?:${_D})(?:\\s+(?:${_D}))*)\\b`, 'g'),
+    (_, l, r) => `${_toDig(l)}.${_toDig(r)}`
+  )
 
-  // Expand sky-condition full words to METAR abbreviations
-  t = t.replace(/\bBROKEN\b/g, 'BKN').replace(/\bOVERCAST\b/g, 'OVC')
-       .replace(/\bSCATTERED\b/g, 'SCT').replace(/\bFEW\b/g, 'FEW')
+  // 2. N THOUSAND N HUNDRED [AND N] → integer  ("two thousand five hundred" → 2500)
+  t = t.replace(
+    new RegExp(`\\b((?:${_A})(?:\\s+(?:${_A}))*?)\\s+THOUSAND\\s+((?:${_A})(?:\\s+(?:${_A}))*?)\\s+HUNDRED(?:\\s+AND\\s+((?:${_A})(?:\\s+(?:${_A}))*?))?\\b`, 'g'),
+    (_, th, hu, re) => String(_toVal(th) * 1000 + _toVal(hu) * 100 + (re ? _toVal(re) : 0))
+  )
+
+  // 3. N THOUSAND [AND N] → integer  ("two thousand" → 2000, "one thousand and five" → 1005)
+  t = t.replace(
+    new RegExp(`\\b((?:${_A})(?:\\s+(?:${_A}))*?)\\s+THOUSAND(?:\\s+(?:AND\\s+)?((?:${_A})(?:\\s+(?:${_A}))*?))?\\b`, 'g'),
+    (_, th, re) => String(_toVal(th) * 1000 + (re ? _toVal(re) : 0))
+  )
+
+  // 4. N HUNDRED [AND N] → integer  ("twenty five hundred" → 2500, "two hundred" → 200)
+  t = t.replace(
+    new RegExp(`\\b((?:${_A})(?:\\s+(?:${_A}))*?)\\s+HUNDRED(?:\\s+(?:AND\\s+)?((?:${_A})(?:\\s+(?:${_A}))*?))?\\b`, 'g'),
+    (_, hu, re) => String(_toVal(hu) * 100 + (re ? _toVal(re) : 0))
+  )
+
+  // 5. TENS + ONES → numeral  ("twenty five" → "25")
+  t = t.replace(
+    new RegExp(`\\b(${_T})\\s+(${_O})\\b`, 'g'),
+    (_, tens, ones) => String((W[tens] ?? 0) + (W[ones] ?? 0))
+  )
+
+  // 6. Single TENS or TEEN → numeral  ("twenty" → "20", "eleven" → "11")
+  t = t.replace(new RegExp(`\\b(${_T}|${_Te})\\b`, 'g'), (_, w) => String(W[w]))
+
+  // 7. Pure digit sequences → digit-by-digit  ("two eight zero" → "280")
+  t = t.replace(
+    new RegExp(`\\b((?:${_D})(?:\\s+(?:${_D}))*)\\b`, 'g'),
+    (_, seq) => _toDig(seq)
+  )
+
+  // Sky-condition abbreviations
+  t = t.replace(/\bBROKEN\b/g, 'BKN').replace(/\bOVERCAST\b/g, 'OVC').replace(/\bSCATTERED\b/g, 'SCT')
 
   return t
 }
