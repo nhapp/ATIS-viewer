@@ -665,7 +665,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-07.7';
+const BUILD = '2026-04-08.9';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 // ─── D-ATIS airport registry ──────────────────────────────────────────────────
@@ -740,6 +740,7 @@ async function sbInit() {
 }
 
 // ─── Runway data (headings in degrees) ───────────────────────────────────────
+// Seeded with common airports; any missing airport is fetched from Supabase on demand.
 
 const RUNWAY_DATA = {
   // Bay Area
@@ -765,7 +766,7 @@ const RUNWAY_DATA = {
   KTEB:[190,10], KBOS:[40,90,150,220,270,330], KPHL:[90,270,350,170],
   KBWI:[100,280,150,330], KDCA:[40,220,30,210], KIAD:[120,300,190,10],
   KPIT:[100,280,140,320], KBUF:[140,320,230,50], KSYR:[100,280,150,330],
-  KALB:[190,10], KRIC:[160,340],
+  KALB:[190,10], KRIC:[160,340], KPVD:[160,340], KMHT:[170,350], KBDL:[60,240],
   // Southeast
   KATL:[80,90,260,270], KMIA:[90,80,270,260], KFLL:[90,270], KPBI:[90,270],
   KMCO:[180,360,170,350], KTPA:[190,100,10,280], KRSW:[60,240],
@@ -804,6 +805,34 @@ const RUNWAY_DATA = {
   YSSY:[160,70,340,250], YMML:[160,270,340,90], YBBN:[140,10,320,190],
   NZAA:[50,230], FAOR:[30,10,210,190],
 };
+
+// Tracks airports currently being fetched so we don't send duplicate requests.
+// Value: true = in flight, null = fetched but no data found in DB.
+const _runwayFetching = {};
+
+async function ensureRunwayData(icao) {
+  if (RUNWAY_DATA[icao] !== undefined) return;   // already have it (or confirmed missing)
+  if (_runwayFetching[icao] !== undefined) return; // already fetching
+  _runwayFetching[icao] = true;
+  try {
+    const res = await sb(`runways?airport_ident=eq.${encodeURIComponent(icao)}&select=le_heading,he_heading`);
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!rows.length) {
+      RUNWAY_DATA[icao] = null; // mark as "not in DB" so we don't retry
+      return;
+    }
+    const headings = [];
+    for (const r of rows) {
+      if (r.le_heading != null) headings.push(Math.round(r.le_heading));
+      if (r.he_heading != null) headings.push(Math.round(r.he_heading));
+    }
+    RUNWAY_DATA[icao] = headings.length ? headings : null;
+    if (headings.length) renderCards(); // re-render now that we have the data
+  } catch (_) {
+    // silently ignore — diagram just won't appear
+  }
+}
 
 // ─── Airport timezones ────────────────────────────────────────────────────────
 const TZ_MAP = {
@@ -890,7 +919,10 @@ function rwyDesignatorToHeading(icao, designator) {
 
 function airportLayoutSvg(icao, activeRwyHeading) {
   const runways = RUNWAY_DATA[icao];
-  if (!runways) return '';
+  if (!runways) {
+    if (icao) ensureRunwayData(icao);
+    return '';
+  }
 
   const cx = 100, cy = 100;
   const L = 58, W = 5, LBL = L + 13;
@@ -977,7 +1009,11 @@ function airportLayoutSvg(icao, activeRwyHeading) {
 
 function runwayWindViz(icao, wind, confirmedRwy = null, forceConfirmed = false) {
   const runways = RUNWAY_DATA[icao];
-  if (!runways || !wind) return '';
+  if (!runways) {
+    if (wind) ensureRunwayData(icao); // fetch and re-render when ready
+    return '';
+  }
+  if (!wind) return '';
   if (wind.dir === null) {
     return runwayWindSvg(icao, Math.round(runways[0] / 10), runways[0], 0, 0, !!confirmedRwy || forceConfirmed);
   }
@@ -1330,6 +1366,26 @@ AIRPORTS.forEach(([icao, name, city, iata]) => {
 
 function airportInfo(icao) { return AIRPORT_MAP[icao] || null; }
 
+// Fetch airport info from Supabase when not in the hardcoded list, then re-render.
+const _airportFetching = {};
+async function ensureAirportInfo(icao) {
+  if (AIRPORT_MAP[icao] !== undefined) return;
+  if (_airportFetching[icao] !== undefined) return;
+  _airportFetching[icao] = true;
+  try {
+    const res = await sb(`airports?icao=eq.${encodeURIComponent(icao)}&select=icao,name,city,state,iata`);
+    if (!res.ok) return;
+    const [row] = await res.json();
+    if (row) {
+      const city = [row.city, row.state].filter(Boolean).join(', ');
+      AIRPORT_MAP[icao] = { name: row.name, city, iata: row.iata || '' };
+    } else {
+      AIRPORT_MAP[icao] = null; // not in DB — don't retry
+    }
+    renderCards();
+  } catch (_) {}
+}
+
 // Synchronous search against the hardcoded AIRPORTS array (instant, used while
 // the async Supabase query is in flight or as a fallback).
 function searchAirportsLocal(q) {
@@ -1399,9 +1455,24 @@ function parseRunways(text) {
   const arr = new Set();
   const dep = new Set();
 
-  // "LANDING AND DEPARTING RWY XX"
-  const ld = text.match(/LANDING\s+AND\s+DEPARTING\s+(?:RWY\s+)?(\d{1,2}[LRC]?)/i);
+  // D-ATIS: "LNDG RWYS 17R AND LEFT" or "LNDG RWY 17R AND 17L"
+  const lndg = text.match(/LNDG\s+RWYS?\s+(\d{1,2}[LRC]?)(?:\s+AND\s+(LEFT|RIGHT|\d{1,2}[LRC]?))?/i);
+  if (lndg) {
+    const r1 = lndg[1].toUpperCase();
+    arr.add(r1); dep.add(r1);
+    if (lndg[2]) {
+      const q = lndg[2].toUpperCase();
+      const num = r1.match(/^(\d{1,2})/)[1];
+      const r2 = q === 'LEFT' ? num + 'L' : q === 'RIGHT' ? num + 'R' : q;
+      arr.add(r2); dep.add(r2);
+    }
+  }
+
+  // "LANDING AND DEPARTING RWY XX" (also matches "LANDING AND DEPARTING RUNWAY XX")
+  const ld = text.match(/LANDING\s+(?:AND\s+)?DEPARTING\s+(?:RWY\s+|RUNWAY\s+)?(\d{1,2}[LRC]?)/i);
   if (ld) { arr.add(ld[1]); dep.add(ld[1]); return { arr:[...arr], dep:[...dep] }; }
+
+  if (lndg) return { arr:[...arr], dep:[...dep] }; // LNDG-only, no other patterns needed
 
   // Approach runways: look for instrument approach types followed by RWY numbers before APCH
   const apchRegex = /(?:ILS|RNAV|VOR|LDA|LOC|GPS|VISUAL|CONTACT|VCTR\s+FOR|SIMUL)[^.]*?(?:RWY\s+)?(\d{1,2}[LRC]?)(?:\s+AND\s+(?:RWY\s+)?(\d{1,2}[LRC]?))?[^.]*?(?:APCH|APPROACH|IN\s+USE)/gi;
@@ -1625,25 +1696,37 @@ function windHtml(wind) {
     </div>`;
 }
 
+// Group runways sharing a number: [17R, 17L] → ["17 R&L"], [17R, 17C, 17L] → ["17 R/C/L"]
+function groupRunways(list) {
+  const groups = {};
+  for (const r of list) {
+    const m = r.match(/^(\d{1,2})([LRC]?)$/);
+    if (m) { if (!groups[m[1]]) groups[m[1]] = []; if (m[2]) groups[m[1]].push(m[2]); }
+    else    { groups[r] = []; }
+  }
+  return Object.entries(groups).map(([num, sufs]) => {
+    if (!sufs.length) return num;
+    if (sufs.includes('L') && sufs.includes('R'))
+      return sufs.includes('C') ? `${num} R/C/L` : `${num} R&L`;
+    return sufs.map(s => num + s).join('/');
+  });
+}
+
 function runwayHtml(runways) {
   const { arr, dep } = runways;
-  if (!arr.length && !dep.length) return `<span style="color:var(--text-dim);font-size:13px">See raw ATIS</span>`;
+  if (!arr.length && !dep.length) return ''; // no info — caller decides whether to show section
 
   const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
   const chk = `<span style="font-size:14px;margin-left:4px;opacity:0.9">✓</span>`;
   if (isCombined) {
-    return `<div class="runway-tags">${arr.map(r => `<span class="runway-tag combined">${r}${chk}</span>`).join('')}</div>`;
+    return `<div class="runway-tags">${groupRunways(arr).map(r => `<span class="runway-tag combined">${r}${chk}</span>`).join('')}</div>`;
   }
 
   let html = '';
-  if (arr.length) {
-    html += `<div class="data-label" style="margin-bottom:6px">Arrivals</div>
-             <div class="runway-tags" style="margin-bottom:10px">${arr.map(r => `<span class="runway-tag">${r}${chk}</span>`).join('')}</div>`;
-  }
-  if (dep.length) {
-    html += `<div class="data-label" style="margin-bottom:6px">Departures</div>
-             <div class="runway-tags">${dep.map(r => `<span class="runway-tag dep">${r}${chk}</span>`).join('')}</div>`;
-  }
+  if (arr.length) html += `<div class="data-label" style="margin-bottom:6px">Arrivals</div>
+    <div class="runway-tags" style="margin-bottom:10px">${groupRunways(arr).map(r => `<span class="runway-tag">${r}${chk}</span>`).join('')}</div>`;
+  if (dep.length) html += `<div class="data-label" style="margin-bottom:6px">Departures</div>
+    <div class="runway-tags">${groupRunways(dep).map(r => `<span class="runway-tag dep">${r}${chk}</span>`).join('')}</div>`;
   return html;
 }
 
@@ -1663,9 +1746,10 @@ function entryHtml(entry, icao = '') {
       const wDir = (!w || w.dir === null || isVRB) ? 0 : (parseInt(w.dir) || 0);
       const wSpd = (!w || w.dir === null || isVRB) ? 0 : (w.spd || 0);
       viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd, true, entry.runways); // D-ATIS confirmed runway
-    } else {
-      viz = runwayWindViz(icao, entry.wind, arrRwy || null, !!arrRwy);
+    } else if (arrRwy) {
+      viz = runwayWindViz(icao, entry.wind, arrRwy, true); // runway from D-ATIS but not in our heading data
     }
+    // No viz when D-ATIS has no runway info — don't show wind-computed guess
   }
   const layoutSvg = icao ? airportLayoutSvg(icao, activeH) : '';
 
@@ -1709,21 +1793,13 @@ function entryHtml(entry, icao = '') {
       </div>
     </div>` : ''}
 
-    ${entry.raw ? `
-    <details style="margin-top:10px">
-      <summary class="raw-text-label" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="opacity:0.5;transition:transform .2s" class="raw-chevron">
-          <path d="M2 3 L5 7 L8 3"/>
-        </svg>
-        Raw D-ATIS
-      </summary>
-      <div class="raw-text-block" style="margin-top:6px">${entry.raw}</div>
-    </details>` : ''}`;
+`;
 }
 
 function renderCard(icao) {
   const c = cache[icao] || {};
   const info = airportInfo(icao);
+  if (!info) ensureAirportInfo(icao);
   const name = info ? info.name : '';
   const city = info ? info.city : '';
   const timeStr = c.lastFetched
@@ -1760,8 +1836,12 @@ function renderCard(icao) {
                   ${(() => {
                     const t = stationTypes[icao];
                     if (!t) return '';
-                    const label = isWeatherOnly(t) ? t.toUpperCase() : 'ATIS';
-                    return `<span style="font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:var(--text-dim)">${label}</span>`;
+                    const code = atisJobs[icao]?.parsed?.code;
+                    if (isWeatherOnly(t)) {
+                      return `<span style="font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:var(--text-dim)">${t.toUpperCase()}</span>`;
+                    }
+                    if (!code) return ''; // no code yet — don't show plain "ATIS"
+                    return `<span style="font-size:12px;font-weight:700;letter-spacing:1.5px;padding:3px 9px;border-radius:4px;background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.35);color:#64ffda">ATIS: ${code}</span>`;
                   })()}
                 </div>
                 <div style="text-align:right;">
@@ -1793,7 +1873,10 @@ function renderCard(icao) {
             </div>
             <div class="info-cell">
               <div class="data-label">Altimeter</div>
-              <span class="altimeter-value" style="font-size:20px">A${mt.altimeter || 'N/A'}</span>
+              ${(() => {
+                const alt = effectiveAltimeter(icao, mt.altimeter);
+                return `<span class="altimeter-value" style="font-size:20px">A${alt.value || 'N/A'}</span>${alt.fromAtis ? `<span style="font-size:9px;color:#64ffda;letter-spacing:.5px;margin-left:4px;vertical-align:middle">ATIS</span>` : ''}`;
+              })()}
             </div>
           </div>
           ${(() => {
@@ -2003,12 +2086,8 @@ function startCountdownTick() {
       const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
       const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
       el.textContent = remaining > 0
-        ? `Est wait: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
-        : `Elapsed: ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
-      const dbgEl = document.getElementById(`atis-dbg-elapsed-${icao}`);
-      if (dbgEl) dbgEl.textContent = `${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
-      const dbgStatus = document.getElementById(`atis-dbg-status-${icao}`);
-      if (dbgStatus) dbgStatus.textContent = job.status;
+        ? ` · est: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
+        : ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
     }
     if (!anyActive) { clearInterval(_countdownTick); _countdownTick = null; }
   }, 1000);
@@ -2016,6 +2095,53 @@ function startCountdownTick() {
 
 function isWeatherOnly(type) {
   return type && type !== 'atis';
+}
+
+// Trim transcript to one complete ATIS loop, oriented to start at "Information [Letter]".
+// Mirrors the server-side logic in twilio-webhook for display of older recordings.
+function trimAtisTranscript(text) {
+  let m;
+
+  // Strategy 1: Tower ATIS — "Information [X]" with time ref in same sentence
+  const openPat = /\binformation\s+[a-z]\b[^.!?]*(?:time|\d{4}|zulu)/gi;
+  let indices = [];
+  while ((m = openPat.exec(text)) !== null) {
+    indices.push(m.index);
+    if (indices.length === 2) break;
+  }
+  if (indices.length === 0) {
+    const fallback = /\binformation\s+[a-z]\b/gi;
+    while ((m = fallback.exec(text)) !== null) {
+      indices.push(m.index);
+      if (indices.length === 2) break;
+    }
+  }
+  if (indices.length >= 1) {
+    // Extend start back to capture airport name (same sentence, before "Information [X]")
+    const before = text.slice(0, indices[0]);
+    const dot = before.lastIndexOf('. ');
+    const start = (dot >= 0 && indices[0] - dot <= 100) ? dot + 2 : indices[0];
+    if (indices.length >= 2) return text.slice(start, indices[1]).trim();
+    return text.slice(start).trim();
+  }
+
+  // Strategy 2: AWOS/ASOS — "AUTOMATED WEATHER/SURFACE OBSERVATION" is the loop END marker.
+  // Find two occurrences; return the content between them (one complete loop).
+  const awosPat = /\bautomated\s+(?:weather|surface)\s+(?:observation|station)\b/gi;
+  const awosEnds = [];
+  while ((m = awosPat.exec(text)) !== null) {
+    let endPos = m.index + m[0].length;
+    // Consume any trailing time reference: ". 0359. ZULU." or "0359 ZULU"
+    const tail = text.slice(endPos, endPos + 60);
+    const zuluM = tail.match(/^[^a-zA-Z]*\d{4}[^a-zA-Z]*\bzulu\b[^.]*\.?/i);
+    if (zuluM) endPos += zuluM[0].length;
+    awosEnds.push(endPos);
+    if (awosEnds.length === 2) break;
+  }
+  if (awosEnds.length >= 2) return text.slice(awosEnds[0], awosEnds[1]).trim();
+  if (awosEnds.length === 1) return text.slice(awosEnds[0]).trim();
+
+  return text;
 }
 
 const _NW = {ZERO:0,ONE:1,TWO:2,THREE:3,FOUR:4,FIVE:5,SIX:6,SEVEN:7,EIGHT:8,NINER:9,NINE:9,TEN:10,ELEVEN:11,TWELVE:12,THIRTEEN:13,FOURTEEN:14,FIFTEEN:15,SIXTEEN:16,SEVENTEEN:17,EIGHTEEN:18,NINETEEN:19,TWENTY:20,THIRTY:30,FORTY:40,FIFTY:50,SIXTY:60,SEVENTY:70,EIGHTY:80,NINETY:90};
@@ -2046,6 +2172,22 @@ function normalizeTranscript(text) {
 }
 
 // Type-aware cache validity (mirrors fetch-atis edge function logic)
+// Returns the best available altimeter for an airport.
+// Prefers a current ATIS altimeter over METAR when available.
+// Returns { value: "30.34", fromAtis: bool }
+function effectiveAltimeter(icao, metarAltimeter) {
+  const job = atisJobs[icao];
+  if (job?.status === 'complete' && job.parsed?.altimeter && job.fetchedAt) {
+    const sType = job.stationType ?? stationTypes[icao] ?? null;
+    if (isCacheValid(job.fetchedAt, sType)) {
+      const a = String(job.parsed.altimeter);
+      const formatted = a.length === 4 ? a.slice(0, 2) + '.' + a.slice(2) : a;
+      return { value: formatted, fromAtis: formatted !== metarAltimeter };
+    }
+  }
+  return { value: metarAltimeter, fromAtis: false };
+}
+
 function isCacheValid(fetchedAt, stationType) {
   const fetched = new Date(fetchedAt);
   const now = new Date();
@@ -2139,7 +2281,7 @@ async function fetchPhoneAtis(icao) {
 
   if (data.job_id) {
     if (data.station_type) stationTypes[icao] = data.station_type;
-    atisJobs[icao] = { status: data.status, job_id: data.job_id, stationType: data.station_type };
+    atisJobs[icao] = { status: data.status, job_id: data.job_id, stationType: data.station_type, startedAt: atisJobs[icao]?.startedAt };
     renderCards();
     subscribeToAtisJob(icao, data.job_id);
   }
@@ -2179,39 +2321,6 @@ function subscribeToAtisJob(icao, jobId) {
   if (atisJobs[icao]) atisJobs[icao].realtimeSub = channel;
 }
 
-// Manually poll a job row — used by the debug panel when Realtime appears stuck
-async function checkJobStatus(icao) {
-  const job = atisJobs[icao];
-  if (!job?.job_id) return;
-  const res = await sb(`atis_jobs?id=eq.${job.job_id}&select=status,call_sid,recording_url,error_msg,transcription,parsed,audio_url,completed_at`);
-  if (!res?.ok) return;
-  const [row] = await res.json();
-  if (!row) return;
-
-  // Update pipeline stage indicators
-  const set = (id, val, ok) => {
-    const el = document.getElementById(id);
-    if (el) { el.textContent = val; el.style.color = ok ? '#64ffda' : ok === false ? '#ff6b6b' : 'var(--text-dim)'; }
-  };
-  set(`atis-dbg-status-${icao}`, row.status, row.status === 'complete' ? true : row.status === 'error' ? false : null);
-  set(`atis-dbg-call-${icao}`,   row.call_sid    ? '✓ call placed'    : '… waiting', !!row.call_sid);
-  set(`atis-dbg-rec-${icao}`,    row.recording_url ? '✓ audio recorded' : '… waiting', !!row.recording_url);
-  set(`atis-dbg-tx-${icao}`,     row.status === 'complete' ? '✓ transcribed' : row.status === 'error' ? `✗ ${row.error_msg?.split('\n')[0] ?? 'failed'}` : '… waiting',
-      row.status === 'complete' ? true : row.status === 'error' ? false : null);
-
-  if (row.status === 'complete' || row.status === 'error') {
-    atisJobs[icao] = {
-      ...job,
-      status:        row.status,
-      transcription: row.transcription,
-      parsed:        row.parsed,
-      audioUrl:      row.audio_url,
-      fetchedAt:     row.completed_at,
-      error:         row.error_msg,
-    };
-    renderCards();
-  }
-}
 
 function supabaseRealtime() {
   if (!window._sbClient) {
@@ -2286,43 +2395,18 @@ function phoneAtisStatusHtml(icao) {
   if (!s) return '';
 
   const isActive = job.status === 'calling' || job.status === 'transcribing';
-  const initSecs = isActive && job.startedAt
-    ? Math.max(0, Math.ceil((EST_WAIT_MS - (Date.now() - job.startedAt)) / 1000))
-    : null;
 
-  let html = `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.05);border:1px solid ${s.color}40">
-    <div style="font-size:12px;color:${s.color};letter-spacing:.5px">${s.icon} ${s.text}</div>`;
-
+  let cdText = '';
   if (isActive && job.startedAt) {
     const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
     const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
-    const cdText = remaining > 0
-      ? `Est wait: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
-      : `Elapsed: ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
-    html += `<div id="atis-cd-${icao}" style="font-size:11px;color:${s.color};opacity:0.75;margin-top:3px">${cdText}</div>`;
-
-    // Debug panel (always shown for active jobs)
-    if (true) {
-      const jobId = job.job_id ? job.job_id.slice(0, 8) + '…' : '—';
-      const elStr = `${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
-      html += `<details style="margin-top:6px" ${elapsed > EST_WAIT_MS / 1000 ? 'open' : ''}>
-        <summary style="font-size:10px;color:var(--text-dim);cursor:pointer;letter-spacing:.5px">DEBUG</summary>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-family:monospace;line-height:2">
-          <div>job: ${jobId}</div>
-          <div>elapsed: <span id="atis-dbg-elapsed-${icao}">${elStr}</span></div>
-          <div>status: <span id="atis-dbg-status-${icao}">${job.status}</span></div>
-          <div>① call: <span id="atis-dbg-call-${icao}">poll to check</span></div>
-          <div>② audio: <span id="atis-dbg-rec-${icao}">poll to check</span></div>
-          <div>③ transcribe: <span id="atis-dbg-tx-${icao}">poll to check</span></div>
-        </div>
-        <button onclick="checkJobStatus('${icao}')"
-          style="margin-top:4px;font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid var(--text-dim);
-                 background:transparent;color:var(--text-dim);cursor:pointer">
-          Poll job now
-        </button>
-      </details>`;
-    }
+    cdText = remaining > 0
+      ? ` · est: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
+      : ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
   }
+
+  let html = `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.05);border:1px solid ${s.color}40">
+    <div style="font-size:12px;color:${s.color};letter-spacing:.5px">${s.icon} ${s.text}<span id="atis-cd-${icao}">${cdText}</span></div>`;
 
   if (job.status === 'complete' && job.fetchedAt) {
     const ft = new Date(job.fetchedAt);
@@ -2339,8 +2423,8 @@ function phoneAtisStatusHtml(icao) {
     if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}</div>`;
     if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
     if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
-    if (p.altimeter)  html += `<div><span class="data-label">ALTIMETER</span> A${p.altimeter}</div>`;
-    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> ${p.runway} <span style="color:#64ffda;font-size:14px">✓</span></div>`;
+    if (p.altimeter)  { const a = String(p.altimeter); const af = a.length === 4 ? a.slice(0,2)+'.'+a.slice(2) : a; html += `<div><span class="data-label">ALTIMETER</span> A${af}</div>`; }
+    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> <span style="font-size:15px;font-weight:700;color:var(--text)">${p.runway}</span> <span style="color:#64ffda;font-size:13px">✓</span></div>`;
     html += `</div>`;
     if (job.audioUrl) {
       html += `<div style="margin-top:8px">
@@ -2351,7 +2435,7 @@ function phoneAtisStatusHtml(icao) {
     }
     if (job.transcription) {
       html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Transcript</summary>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${normalizeTranscript(job.transcription)}</div></details>`;
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${trimAtisTranscript(normalizeTranscript(job.transcription))}</div></details>`;
     }
   }
 

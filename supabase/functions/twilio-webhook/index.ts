@@ -9,6 +9,8 @@ serve(async (req) => {
   const recUrl    = form.get('RecordingUrl')?.toString()
   const recStatus = form.get('RecordingStatus')?.toString()
   const callSid   = form.get('CallSid')?.toString()
+  const recDurRaw = form.get('RecordingDuration')?.toString()
+  const recordingDuration = recDurRaw ? parseInt(recDurRaw) : null
 
   // Only process completed recordings
   if (recStatus !== 'completed' || !recUrl) {
@@ -35,6 +37,7 @@ serve(async (req) => {
   await supabase.from('atis_jobs').update({
     status: 'transcribing',
     recording_url: `${recUrl}.mp3`,
+    ...(recordingDuration !== null ? { recording_duration_sec: recordingDuration } : {}),
   }).eq('id', job.id)
 
   try {
@@ -71,7 +74,8 @@ serve(async (req) => {
       throw new Error(`Whisper failed: ${err}`)
     }
 
-    const { text: transcription } = await whisperResp.json()
+    const { text: rawTranscription } = await whisperResp.json()
+    const transcription = trimToOneAtisLoop(rawTranscription)
     const parsed = parseAtis(transcription)
 
     // Upload MP3 to Supabase Storage for playback
@@ -114,6 +118,66 @@ serve(async (req) => {
 
   return new Response('ok', { status: 200 })
 })
+
+// ── ATIS loop trimmer ─────────────────────────────────────────────────────────
+//
+// ATIS is a continuous loop. We start recording mid-loop, so the transcript
+// typically contains a partial tail, then one complete loop, then the start of
+// the next loop. The loop boundary is marked by "Information [Letter]" at both
+// the beginning and end of each cycle.
+//
+// Strategy: find the first and second occurrence of "Information [X]".
+//   - 2 found → keep exactly [first, second) — one complete loop
+//   - 1 found → start from first marker to end — at least one complete loop
+//   - 0 found → keep everything (AWOS/non-standard format)
+
+function trimToOneAtisLoop(transcript: string): string {
+  let m: RegExpExecArray | null
+
+  // Strategy 1: Tower ATIS — "Information [X]" with time ref in same sentence.
+  // We also extend the start backward to capture the airport name, which appears
+  // in the same sentence immediately before "Information [X]".
+  const openPat = /\binformation\s+[a-z]\b[^.!?]*(?:time|\d{4}|zulu)/gi
+  const indices: number[] = []
+  while ((m = openPat.exec(transcript)) !== null) {
+    indices.push(m.index)
+    if (indices.length === 2) break
+  }
+  if (indices.length === 0) {
+    const fallback = /\binformation\s+[a-z]\b/gi
+    while ((m = fallback.exec(transcript)) !== null) {
+      indices.push(m.index)
+      if (indices.length === 2) break
+    }
+  }
+  if (indices.length >= 1) {
+    // Look back up to 100 chars for the start of this sentence (after last ". ")
+    // so we include the airport name that precedes "Information [X]".
+    const before = transcript.slice(0, indices[0])
+    const dot = before.lastIndexOf('. ')
+    const start = (dot >= 0 && indices[0] - dot <= 100) ? dot + 2 : indices[0]
+    if (indices.length >= 2) return transcript.slice(start, indices[1]).trim()
+    return transcript.slice(start).trim()
+  }
+
+  // Strategy 2: AWOS/ASOS — "AUTOMATED WEATHER/SURFACE OBSERVATION" is the loop END marker.
+  // Find two occurrences; the content between them is exactly one loop.
+  const awosPat = /\bautomated\s+(?:weather|surface)\s+(?:observation|station)\b/gi
+  const awosEnds: number[] = []
+  while ((m = awosPat.exec(transcript)) !== null) {
+    let endPos = m.index + m[0].length
+    // Consume trailing time reference: ". 0359. ZULU." or "0359 ZULU"
+    const tail = transcript.slice(endPos, endPos + 60)
+    const zuluM = tail.match(/^[^a-zA-Z]*\d{4}[^a-zA-Z]*\bzulu\b[^.]*\.?/i)
+    if (zuluM) endPos += zuluM[0].length
+    awosEnds.push(endPos)
+    if (awosEnds.length === 2) break
+  }
+  if (awosEnds.length >= 2) return transcript.slice(awosEnds[0], awosEnds[1]).trim()
+  if (awosEnds.length === 1) return transcript.slice(awosEnds[0]).trim()
+
+  return transcript
+}
 
 // ── ATIS text parser ──────────────────────────────────────────────────────────
 
@@ -230,8 +294,9 @@ function parseAtis(text: string) {
   const altimeter = altM ? (altM[1] ?? altM[2]) : null
 
   // Active runways
-  const rwyM = t.match(/(?:LANDING|DEPARTING|ARRIVAL|DEPARTURE)S?\s+RUNWAY\s+([\d]{1,2}[LRC]?)/)
-    ?? t.match(/RUNWAY\s+([\d]{1,2}[LRC]?)\s+(?:IN USE|APPROACH|LANDING|DEPARTING)/)
+  const rwyM = t.match(/LANDING\s+AND\s+DEPARTING\s+(?:RUNWAY\s+)?(\d{1,2}[LRC]?)/)
+    ?? t.match(/(?:LANDING|DEPARTING|ARRIVAL|DEPARTURE)S?\s+RUNWAY\s+(\d{1,2}[LRC]?)/)
+    ?? t.match(/RUNWAY\s+(\d{1,2}[LRC]?)\s+(?:IN USE|APPROACH|LANDING|DEPARTING)/)
 
   // Temperature / dewpoint
   const tempM = t.match(/TEMPERATURE\s+(\d+)/)

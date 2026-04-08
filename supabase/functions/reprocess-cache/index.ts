@@ -82,8 +82,9 @@ function parseAtis(text: string) {
   }
   const altM = t.match(/ALTIMETER\s+(\d{4})|A\s*(\d{4})/)
   const altimeter = altM ? (altM[1] ?? altM[2]) : null
-  const rwyM = t.match(/(?:LANDING|DEPARTING|ARRIVAL|DEPARTURE)S?\s+RUNWAY\s+([\d]{1,2}[LRC]?)/)
-    ?? t.match(/RUNWAY\s+([\d]{1,2}[LRC]?)\s+(?:IN USE|APPROACH|LANDING|DEPARTING)/)
+  const rwyM = t.match(/LANDING\s+AND\s+DEPARTING\s+(?:RUNWAY\s+)?(\d{1,2}[LRC]?)/)
+    ?? t.match(/(?:LANDING|DEPARTING|ARRIVAL|DEPARTURE)S?\s+RUNWAY\s+(\d{1,2}[LRC]?)/)
+    ?? t.match(/RUNWAY\s+(\d{1,2}[LRC]?)\s+(?:IN USE|APPROACH|LANDING|DEPARTING)/)
   const tempM = t.match(/TEMPERATURE\s+(\d+)/)
   const dewM  = t.match(/DEW\s*POINT\s+(\d+)|DEWPOINT\s+(\d+)/)
   const timeM = t.match(/TIME\s+(\d{4})\s*(?:ZULU|Z\b)/)
@@ -101,6 +102,48 @@ function parseAtis(text: string) {
   }
 }
 
+function trimToOneAtisLoop(transcript: string): string {
+  let m: RegExpExecArray | null
+
+  // Strategy 1: Tower ATIS — "Information [X]" with time ref in same sentence
+  const openPat = /\binformation\s+[a-z]\b[^.!?]*(?:time|\d{4}|zulu)/gi
+  const indices: number[] = []
+  while ((m = openPat.exec(transcript)) !== null) {
+    indices.push(m.index)
+    if (indices.length === 2) break
+  }
+  if (indices.length === 0) {
+    const fallback = /\binformation\s+[a-z]\b/gi
+    while ((m = fallback.exec(transcript)) !== null) {
+      indices.push(m.index)
+      if (indices.length === 2) break
+    }
+  }
+  if (indices.length >= 1) {
+    const before = transcript.slice(0, indices[0])
+    const dot = before.lastIndexOf('. ')
+    const start = (dot >= 0 && indices[0] - dot <= 100) ? dot + 2 : indices[0]
+    if (indices.length >= 2) return transcript.slice(start, indices[1]).trim()
+    return transcript.slice(start).trim()
+  }
+
+  // Strategy 2: AWOS/ASOS — "AUTOMATED WEATHER/SURFACE OBSERVATION" is the loop END marker.
+  const awosPat = /\bautomated\s+(?:weather|surface)\s+(?:observation|station)\b/gi
+  const awosEnds: number[] = []
+  while ((m = awosPat.exec(transcript)) !== null) {
+    let endPos = m.index + m[0].length
+    const tail = transcript.slice(endPos, endPos + 60)
+    const zuluM = tail.match(/^[^a-zA-Z]*\d{4}[^a-zA-Z]*\bzulu\b[^.]*\.?/i)
+    if (zuluM) endPos += zuluM[0].length
+    awosEnds.push(endPos)
+    if (awosEnds.length === 2) break
+  }
+  if (awosEnds.length >= 2) return transcript.slice(awosEnds[0], awosEnds[1]).trim()
+  if (awosEnds.length === 1) return transcript.slice(awosEnds[0]).trim()
+
+  return transcript
+}
+
 serve(async () => {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -116,8 +159,9 @@ serve(async () => {
   const results: string[] = []
   for (const row of rows ?? []) {
     if (!row.transcription) continue
-    const parsed = parseAtis(row.transcription)
-    await supabase.from('atis_cache').update({ parsed }).eq('icao', row.icao)
+    const transcription = trimToOneAtisLoop(row.transcription)
+    const parsed = parseAtis(transcription)
+    await supabase.from('atis_cache').update({ transcription, parsed }).eq('icao', row.icao)
     results.push(row.icao)
   }
 

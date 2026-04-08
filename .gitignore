@@ -1,6 +1,8 @@
 # Generated SQL outputs (re-run scripts to regenerate)
 airports.sql
 dcs_phones.sql
+runways.sql
+scripts/runways.csv
 
 # Python
 __pycache__/

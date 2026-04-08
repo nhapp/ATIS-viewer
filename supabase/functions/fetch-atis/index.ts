@@ -100,9 +100,13 @@ serve(async (req) => {
   }
 
   // 5. Create job
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+          ?? req.headers.get('x-real-ip')
+          ?? null
+
   const { data: job, error: jobErr } = await supabase
     .from('atis_jobs')
-    .insert({ icao: icaoUpper, status: 'calling' })
+    .insert({ icao: icaoUpper, status: 'calling', ip_address: ip })
     .select()
     .single()
 
