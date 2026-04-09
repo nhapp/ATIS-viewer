@@ -134,13 +134,30 @@ serve(async (req) => {
         .lte('notify_after', completedAt)
       if (alerts?.length) {
         const p = parsed
+        // Wind string with headwind/crosswind components when runway is known
+        let windStr: string | null = null
+        if (p.wind) {
+          if (p.wind.spd === 0) {
+            windStr = 'WIND CALM'
+          } else {
+            windStr = `WIND ${p.wind.dir}@${p.wind.spd}KT${p.wind.gust ? ` G${p.wind.gust}` : ''}`
+            if (p.runway && p.wind.dir !== 'VRB') {
+              const rwyHdg = parseInt(p.runway) * 10
+              const angle  = (parseInt(p.wind.dir) - rwyHdg) * Math.PI / 180
+              const hw = Math.round(p.wind.spd * Math.cos(angle))
+              const xw = Math.round(Math.abs(p.wind.spd * Math.sin(angle)))
+              const hwLabel = hw >= 0 ? `HW${hw}` : `TW${Math.abs(hw)}`
+              windStr += ` (${hwLabel}/XW${xw}KT)`
+            }
+          }
+        }
         const fields = [
           p.code       ? `ATIS ${p.code}` : null,
-          p.wind       ? (p.wind.spd === 0 ? 'WIND CALM' : `WIND ${p.wind.dir}@${p.wind.spd}KT${p.wind.gust ? ` G${p.wind.gust}` : ''}`) : null,
+          p.runway     ? `RWY ${p.runway}` : null,
+          windStr,
           p.visibility ? `VIS ${p.visibility}SM` : null,
           p.ceiling    ? `${p.ceiling.cover} ${p.ceiling.height}FT` : null,
           p.altimeter  ? `ALT A${p.altimeter}` : null,
-          p.runway     ? `RWY ${p.runway}` : null,
         ].filter(Boolean)
         const info = fields.join(' | ')
         const body = `TripAtis: ${job.icao} | ${info || transcription.slice(0, 140)}`
