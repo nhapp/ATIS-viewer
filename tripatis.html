@@ -821,6 +821,7 @@ async function setAtisAlert() {
 }
 
 // ── ETA wire-up ───────────────────────────────────────────────────────────────
+document.getElementById('eta-time').addEventListener('input',  () => { runAnalysis(); updateAlertButton(); });
 document.getElementById('eta-time').addEventListener('change', () => { runAnalysis(); updateAlertButton(); });
 document.querySelectorAll('input[name="eta-day"]').forEach(r => r.addEventListener('change', () => { runAnalysis(); updateAlertButton(); }));
 
