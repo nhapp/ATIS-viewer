@@ -665,7 +665,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-09.2';
+const BUILD = '2026-04-09.3';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 // ─── D-ATIS airport registry ──────────────────────────────────────────────────
@@ -1085,7 +1085,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = fa
         if (runwayData && confirmed && (runwayData.arr.length || runwayData.dep.length)) {
           const { arr, dep } = runwayData;
           const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
-          let h = `<div class="data-label" style="margin-bottom:5px">Runway</div>`;
+          let h = `<div class="data-label" style="margin-bottom:5px">RUNWAY IN USE</div>`;
           if (isCombined) {
             h += `<div style="display:flex;flex-wrap:wrap;gap:4px">${arr.map(r => `<span class="runway-tag combined" style="font-size:13px;padding:3px 9px">${r}${chk}</span>`).join('')}</div>`;
           } else {
@@ -1094,7 +1094,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = fa
           }
           return h;
         }
-        return `<div class="data-label" style="margin-bottom:2px">${confirmed ? 'Runway' : 'Suggested Runway'}</div>
+        return `<div class="data-label" style="margin-bottom:2px">${confirmed ? 'RUNWAY IN USE' : 'SUGGESTED RUNWAY'}</div>
           <div style="color:var(--accent);font-size:32px;font-weight:900;letter-spacing:5px;line-height:1">${String(rwyNum).padStart(2,'0')}</div>`;
       })()}
     </div>
@@ -1505,6 +1505,11 @@ function parseTime(text) {
   return m ? m[1]+'Z' : null;
 }
 
+// Format a Date to local time string with no space before AM/PM (e.g. "05:45PM PT")
+function fmtTime(date, opts = {}) {
+  return date.toLocaleTimeString([], opts).replace(/\s+(AM|PM)/i, '$1');
+}
+
 function zuluToLocal(zuluTime, icao) {
   const m = zuluTime.match(/(\d{2})(\d{2})Z?/i);
   if (!m) return null;
@@ -1512,7 +1517,7 @@ function zuluToLocal(zuluTime, icao) {
   const now = new Date();
   const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), parseInt(m[1]), parseInt(m[2])));
   if (utc - now > 10 * 60000) utc.setUTCDate(utc.getUTCDate() - 1);
-  return utc.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short', timeZone: tz });
+  return fmtTime(utc, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short', timeZone: tz });
 }
 
 function ageColor(zuluStr) {
@@ -1554,7 +1559,7 @@ function parseMetarTime(raw) {
   // Roll month back if day is in the future (end-of-month edge case)
   if (utc > now + 12 * 3600000) utc.setUTCMonth(utc.getUTCMonth() - 1);
   const zuluStr  = `${hh}${mm}Z`;
-  const localStr = utc.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  const localStr = fmtTime(utc, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   return { zuluStr, localStr };
 }
 
@@ -1725,9 +1730,9 @@ function runwayHtml(runways) {
   }
 
   let html = '';
-  if (arr.length) html += `<div class="data-label" style="margin-bottom:6px">Arrivals</div>
+  if (arr.length) html += `<div class="data-label" style="margin-bottom:6px">ARRIVALS</div>
     <div class="runway-tags" style="margin-bottom:10px">${groupRunways(arr).map(r => `<span class="runway-tag">${r}${chk}</span>`).join('')}</div>`;
-  if (dep.length) html += `<div class="data-label" style="margin-bottom:6px">Departures</div>
+  if (dep.length) html += `<div class="data-label" style="margin-bottom:6px">DEPARTURES</div>
     <div class="runway-tags">${groupRunways(dep).map(r => `<span class="runway-tag dep">${r}${chk}</span>`).join('')}</div>`;
   return html;
 }
@@ -1735,7 +1740,7 @@ function runwayHtml(runways) {
 function entryHtml(entry, icao = '') {
   const { arr, dep } = entry.runways;
   const isCombined = arr.length === dep.length && arr.every(r => dep.includes(r));
-  const runwayLabel = isCombined ? 'Runway In Use' : '';
+  const runwayLabel = isCombined ? 'RUNWAY IN USE' : '';
   // For D-ATIS: use the runway the ATIS declares; fall back to wind-computed
   let viz = '', activeH = null;
   if (icao) {
@@ -1765,7 +1770,7 @@ function entryHtml(entry, icao = '') {
       <div class="atis-meta">
         ${entry.time ? `<span class="atis-time" ${ageColor(entry.time) ? `style="color:${ageColor(entry.time)}"` : ''}>${entry.time}</span>` : ''}
         ${entry.time ? `<span class="atis-time-local" ${ageColor(entry.time) ? `style="color:${ageColor(entry.time)}"` : ''}>${zuluToLocal(entry.time, icao)}</span>` : ''}
-        ${entry.type ? `<span class="atis-type">${entry.type.toUpperCase()}</span>` : ''}
+        ${entry.type && entry.type.toLowerCase() !== 'combined' ? `<span class="atis-type">${entry.type.toUpperCase()}</span>` : ''}
       </div>
     </div>
 
@@ -1807,7 +1812,7 @@ function renderCard(icao) {
   const name = info ? info.name : '';
   const city = info ? info.city : '';
   const timeStr = c.lastFetched
-    ? c.lastFetched.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ? fmtTime(c.lastFetched, { hour: '2-digit', minute: '2-digit' })
     : '';
 
   let body = '';
@@ -1842,7 +1847,7 @@ function renderCard(icao) {
                     if (!t) return '';
                     const code = atisJobs[icao]?.parsed?.code;
                     if (isWeatherOnly(t)) {
-                      return `<span style="font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:var(--text-dim)">${t.toUpperCase()}</span>`;
+                      return `<span style="font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:var(--text-dim)">${t.replace(/-\w+$/, '').toUpperCase()}</span>`;
                     }
                     if (!code) return ''; // no code yet — don't show plain "ATIS"
                     return `<span style="font-size:12px;font-weight:700;letter-spacing:1.5px;padding:3px 9px;border-radius:4px;background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.35);color:#64ffda">ATIS: ${code}</span>`;
@@ -2103,6 +2108,23 @@ function isWeatherOnly(type) {
 
 // Trim transcript to one complete ATIS loop, oriented to start at "Information [Letter]".
 // Mirrors the server-side logic in twilio-webhook for display of older recordings.
+// Rotate an AWOS transcript so it starts at the station-identification phrase
+// ("automated weather observation...") with the airport name that precedes it.
+// The server stores content that ends with the AWOS marker; this rotates it to the front.
+function orientAwosTranscript(text) {
+  const pat = /\bautomated\s+(?:weather|surface)\s+(?:observation|station)\b/gi;
+  let lastIdx = -1, m;
+  while ((m = pat.exec(text)) !== null) lastIdx = m.index;
+  if (lastIdx < 0) return text;
+  // Look back ≤80 chars for sentence start to include airport name
+  const before = text.slice(0, lastIdx);
+  const dot = before.lastIndexOf('. ');
+  const start = (dot >= 0 && lastIdx - dot <= 80) ? dot + 2 : lastIdx;
+  const head = text.slice(start).trim();
+  const tail = text.slice(0, start).trim();
+  return tail ? head + ' ' + tail : head;
+}
+
 function trimAtisTranscript(text) {
   let m;
 
@@ -2215,7 +2237,7 @@ function nextRefreshText(stationType, fetchedAt) {
   const thisHour45 = new Date(now);
   thisHour45.setMinutes(45, 0, 0);
   const next45 = now < thisHour45 ? thisHour45 : new Date(thisHour45.getTime() + 3_600_000);
-  return `Refreshes at ${next45.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  return `Refreshes at ${fmtTime(next45, { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 async function checkStationType(icao) {
@@ -2372,7 +2394,7 @@ function phoneAtisStatusHtml(icao) {
     // Wait until checkStationType has run; undefined = still in flight
     if (!Object.prototype.hasOwnProperty.call(stationTypes, icao)) return '';
     const t = stationTypes[icao]; // null means not in atis_phones; still show button
-    const label = isWeatherOnly(t) ? 'Retrieve AWOS' : 'Retrieve Current ATIS';
+    const label = isWeatherOnly(t) ? 'RETRIEVE AWOS' : 'RETRIEVE CURRENT ATIS';
     return `<div style="margin-bottom:10px">
       <button onclick="fetchPhoneAtis('${icao}')"
         style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid var(--accent);
@@ -2387,12 +2409,12 @@ function phoneAtisStatusHtml(icao) {
   const weatherOnly = isWeatherOnly(job.stationType || stationTypes[icao]);
   const stationLabel = weatherOnly ? 'AWOS' : 'ATIS';
   const STATUS_LABELS = {
-    checking:     { icon: '⏳', text: `Checking ${stationLabel}…`,    color: '#888888' },
-    calling:      { icon: '📞', text: `Retrieving ${stationLabel}…`,  color: '#ffb347' },
-    transcribing: { icon: '🎙️', text: 'Transcribing audio…',          color: '#ffb347' },
-    complete:     { icon: '✅', text: `${stationLabel} Current${job.parsed?.code ? ` [${job.parsed.code}]` : ''}`, color: '#64ffda' },
-    error:        { icon: '⚠️', text: `${stationLabel} fetch failed`,  color: '#ff6b6b' },
-    no_phone:     { icon: '📵', text: 'No phone ATIS on file',         color: 'var(--text-dim)' },
+    checking:     { icon: '⏳', text: `CHECKING ${stationLabel}…`,    color: '#888888' },
+    calling:      { icon: '📞', text: `RETRIEVING ${stationLabel}…`,  color: '#ffb347' },
+    transcribing: { icon: '🎙️', text: 'TRANSCRIBING AUDIO…',          color: '#ffb347' },
+    complete:     { icon: '✅', text: `${stationLabel} CURRENT${job.parsed?.code ? ` [${job.parsed.code}]` : ''}`, color: '#64ffda' },
+    error:        { icon: '⚠️', text: `${stationLabel} FETCH FAILED`,  color: '#ff6b6b' },
+    no_phone:     { icon: '📵', text: 'NO PHONE ATIS ON FILE',         color: 'var(--text-dim)' },
   };
 
   const s = STATUS_LABELS[job.status];
@@ -2414,7 +2436,7 @@ function phoneAtisStatusHtml(icao) {
 
   if (job.status === 'complete' && job.fetchedAt) {
     const ft = new Date(job.fetchedAt);
-    const hhmm = ft.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const hhmm = fmtTime(ft, { hour: '2-digit', minute: '2-digit' });
     const sType = job.stationType ?? stationTypes[icao] ?? null;
     const nextRefresh = nextRefreshText(sType, job.fetchedAt);
     html += `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">Retrieved ${hhmm} · ${nextRefresh}</div>`;
@@ -2423,12 +2445,12 @@ function phoneAtisStatusHtml(icao) {
   if (job.status === 'complete' && job.parsed) {
     const p = job.parsed;
     html += `<div style="margin-top:8px;font-size:13px;color:var(--text)">`;
-    if (weatherOnly) html += `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;font-style:italic">Weather data only · No runway or traffic information</div>`;
+    if (weatherOnly) html += `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;font-style:italic">WEATHER DATA ONLY · NO RUNWAY OR TRAFFIC INFORMATION</div>`;
     if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}</div>`;
     if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
     if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
     if (p.altimeter)  { const a = String(p.altimeter); const af = a.length === 4 ? a.slice(0,2)+'.'+a.slice(2) : a; html += `<div><span class="data-label">ALTIMETER</span> A${af}</div>`; }
-    if (p.runway)     html += `<div><span class="data-label">RUNWAY</span> <span style="font-size:15px;font-weight:700;color:var(--text)">${p.runway}</span> <span style="color:#64ffda;font-size:13px">✓</span></div>`;
+    if (p.runway)     html += `<div><span class="data-label">LANDING/DEPARTING</span> <span style="font-size:15px;font-weight:700;color:var(--text)">${p.runway}</span> <span style="color:#64ffda;font-size:13px">✓</span></div>`;
     html += `</div>`;
     if (job.audioUrl) {
       html += `<div style="margin-top:8px">
@@ -2438,8 +2460,10 @@ function phoneAtisStatusHtml(icao) {
       </div>`;
     }
     if (job.transcription) {
+      const normalized = normalizeTranscript(job.transcription);
+      const displayTranscript = weatherOnly ? orientAwosTranscript(normalized) : normalized;
       html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Transcript</summary>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${normalizeTranscript(job.transcription)}</div></details>`;
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${displayTranscript}</div></details>`;
     }
   }
 
