@@ -168,7 +168,7 @@ serve(async (req) => {
 async function sendSms(to: string, body: string): Promise<void> {
   const sid  = Deno.env.get('TWILIO_ACCOUNT_SID')!
   const token = Deno.env.get('TWILIO_AUTH_TOKEN')!
-  const from  = Deno.env.get('TWILIO_PHONE_NUMBER')!
+  const from  = Deno.env.get('TWILIO_FROM_NUMBER')!
   if (!from) return // SMS not configured
   const params = new URLSearchParams({ To: to, From: from, Body: body })
   await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
