@@ -146,8 +146,8 @@ serve(async (req) => {
               const angle  = (parseInt(p.wind.dir) - rwyHdg) * Math.PI / 180
               const hw = Math.round(p.wind.spd * Math.cos(angle))
               const xw = Math.round(Math.abs(p.wind.spd * Math.sin(angle)))
-              const hwLabel = hw >= 0 ? `HW${hw}` : `TW${Math.abs(hw)}`
-              windStr += ` (${hwLabel}/XW${xw}KT)`
+              const hwLabel = hw >= 0 ? `Headwind ${hw}` : `Tailwind ${Math.abs(hw)}`
+              windStr += ` (${hwLabel}/X-wind ${xw}KT)`
             }
           }
         }
