@@ -2095,7 +2095,7 @@ function startCountdownTick() {
       const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
       const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
       el.textContent = remaining > 0
-        ? ` · est: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
+        ? ` · EST: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
         : ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
     }
     if (!anyActive) { clearInterval(_countdownTick); _countdownTick = null; }
@@ -2427,7 +2427,7 @@ function phoneAtisStatusHtml(icao) {
     const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
     const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
     cdText = remaining > 0
-      ? ` · est: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
+      ? ` · EST: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
       : ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
   }
 

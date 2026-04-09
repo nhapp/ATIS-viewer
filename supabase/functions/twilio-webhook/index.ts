@@ -115,13 +115,42 @@ serve(async (req) => {
     })
 
     // Complete job
+    const completedAt = new Date().toISOString()
     await supabase.from('atis_jobs').update({
       status:       'complete',
       transcription,
       parsed,
       audio_url:    audioUrl,
-      completed_at: new Date().toISOString(),
+      completed_at: completedAt,
     }).eq('id', job.id)
+
+    // Dispatch pending SMS alerts for this airport whose notify_after has passed
+    try {
+      const { data: alerts } = await supabase
+        .from('atis_alert_subscriptions')
+        .select('id, phone')
+        .eq('icao', job.icao)
+        .is('sent_at', null)
+        .lte('notify_after', completedAt)
+      if (alerts?.length) {
+        const p = parsed
+        const info = [
+          p.code  ? `INFO ${p.code}`  : null,
+          p.wind  ? (p.wind.spd === 0 ? 'WIND CALM' : `WIND ${p.wind.dir}@${p.wind.spd}KT${p.wind.gust ? ` G${p.wind.gust}` : ''}`) : null,
+          p.visibility ? `VIS ${p.visibility}SM` : null,
+          p.ceiling    ? `CEILING ${p.ceiling.cover} ${p.ceiling.height}FT` : null,
+          p.altimeter  ? `ALT A${p.altimeter}` : null,
+          p.runway     ? `RWY ${p.runway}` : null,
+        ].filter(Boolean).join(' · ')
+        const body = `${job.icao} ATIS UPDATED: ${info || transcription.slice(0, 140)}`
+        await Promise.all(alerts.map(async (alert) => {
+          await sendSms(alert.phone, body)
+          await supabase.from('atis_alert_subscriptions')
+            .update({ sent_at: completedAt, atis_code: p.code ?? null })
+            .eq('id', alert.id)
+        }))
+      }
+    } catch (_) { /* non-fatal — ATIS was stored successfully */ }
 
   } catch (err) {
     await supabase.from('atis_jobs').update({
@@ -133,6 +162,24 @@ serve(async (req) => {
 
   return new Response('ok', { status: 200 })
 })
+
+// ── Twilio SMS ────────────────────────────────────────────────────────────────
+
+async function sendSms(to: string, body: string): Promise<void> {
+  const sid  = Deno.env.get('TWILIO_ACCOUNT_SID')!
+  const token = Deno.env.get('TWILIO_AUTH_TOKEN')!
+  const from  = Deno.env.get('TWILIO_PHONE_NUMBER')!
+  if (!from) return // SMS not configured
+  const params = new URLSearchParams({ To: to, From: from, Body: body })
+  await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + btoa(`${sid}:${token}`),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params,
+  })
+}
 
 // ── ATIS loop trimmer ─────────────────────────────────────────────────────────
 //
