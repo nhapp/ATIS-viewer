@@ -346,6 +346,7 @@
       <div class="phone-row">
         <input type="tel" id="alert-phone" class="phone-input" placeholder="+1 (555) 123-4567">
         <button id="set-alert-btn" class="btn-amber" disabled>SET ATIS ALERT</button>
+        <button id="test-sms-btn" class="btn-outline" disabled>SEND TEST TEXT</button>
       </div>
       <div id="alert-status" class="alert-status"></div>
     </div>
@@ -780,12 +781,15 @@ function renderAtisResult() {
 
 // ── SMS alert ─────────────────────────────────────────────────────────────────
 function updateAlertButton() {
-  const eta = getEtaDate();
+  const eta   = getEtaDate();
+  const phone = document.getElementById('alert-phone').value.trim();
   document.getElementById('set-alert-btn').disabled = !(state.arr.icao && eta && eta > new Date());
+  document.getElementById('test-sms-btn').disabled  = !(state.arr.icao && phone);
 }
 
 document.getElementById('alert-phone').addEventListener('input', updateAlertButton);
 document.getElementById('set-alert-btn').addEventListener('click', setAtisAlert);
+document.getElementById('test-sms-btn').addEventListener('click', sendTestSms);
 
 async function setAtisAlert() {
   const icao  = state.arr.icao;
@@ -818,6 +822,37 @@ async function setAtisAlert() {
     statusEl.textContent = `📞 RETRIEVING ATIS FOR ${icao}…`;
     fetchArrAtis();
   }, Math.max(notify_after.getTime() - Date.now(), 0));
+}
+
+async function sendTestSms() {
+  const icao  = state.arr.icao;
+  const phone = document.getElementById('alert-phone').value.trim();
+  const statusEl = document.getElementById('alert-status');
+  if (!icao || !phone) return;
+
+  const btn = document.getElementById('test-sms-btn');
+  btn.disabled = true;
+  btn.textContent = 'SENDING…';
+  statusEl.className = 'alert-status info';
+  statusEl.textContent = '';
+
+  try {
+    const res = await fetch(`${EDGE_URL}/sms-test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
+      body: JSON.stringify({ icao, phone }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    statusEl.className = 'alert-status ok';
+    statusEl.textContent = `✅ TEST TEXT SENT TO ${phone}`;
+  } catch (err) {
+    statusEl.className = 'alert-status err';
+    statusEl.textContent = `⚠ ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'SEND TEST TEXT';
+  }
 }
 
 // ── ETA wire-up ───────────────────────────────────────────────────────────────
