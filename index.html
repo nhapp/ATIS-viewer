@@ -665,7 +665,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-09.1';
+const BUILD = '2026-04-09.2';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 // ─── D-ATIS airport registry ──────────────────────────────────────────────────
@@ -2439,7 +2439,7 @@ function phoneAtisStatusHtml(icao) {
     }
     if (job.transcription) {
       html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Transcript</summary>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${trimAtisTranscript(normalizeTranscript(job.transcription))}</div></details>`;
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${normalizeTranscript(job.transcription)}</div></details>`;
     }
   }
 
