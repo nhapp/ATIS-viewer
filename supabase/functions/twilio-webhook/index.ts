@@ -134,15 +134,16 @@ serve(async (req) => {
         .lte('notify_after', completedAt)
       if (alerts?.length) {
         const p = parsed
-        const info = [
-          p.code  ? `INFO ${p.code}`  : null,
-          p.wind  ? (p.wind.spd === 0 ? 'WIND CALM' : `WIND ${p.wind.dir}@${p.wind.spd}KT${p.wind.gust ? ` G${p.wind.gust}` : ''}`) : null,
+        const fields = [
+          p.code       ? `ATIS ${p.code}` : null,
+          p.wind       ? (p.wind.spd === 0 ? 'WIND CALM' : `WIND ${p.wind.dir}@${p.wind.spd}KT${p.wind.gust ? ` G${p.wind.gust}` : ''}`) : null,
           p.visibility ? `VIS ${p.visibility}SM` : null,
-          p.ceiling    ? `CEILING ${p.ceiling.cover} ${p.ceiling.height}FT` : null,
+          p.ceiling    ? `${p.ceiling.cover} ${p.ceiling.height}FT` : null,
           p.altimeter  ? `ALT A${p.altimeter}` : null,
           p.runway     ? `RWY ${p.runway}` : null,
-        ].filter(Boolean).join(' · ')
-        const body = `${job.icao} ATIS UPDATED: ${info || transcription.slice(0, 140)}`
+        ].filter(Boolean)
+        const info = fields.join(' | ')
+        const body = `TripAtis: ${job.icao} | ${info || transcription.slice(0, 140)}`
         await Promise.all(alerts.map(async (alert) => {
           await sendSms(alert.phone, body)
           await supabase.from('atis_alert_subscriptions')
