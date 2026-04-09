@@ -10,7 +10,7 @@ serve(async (req) => {
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Record
-    maxLength="180"
+    maxLength="120"
     timeout="6"
     trim="do-not-trim"
     recordingStatusCallback="${cbUrl}"

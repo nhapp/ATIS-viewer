@@ -665,7 +665,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-08.9';
+const BUILD = '2026-04-09.1';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 // ─── D-ATIS airport registry ──────────────────────────────────────────────────
@@ -745,28 +745,29 @@ async function sbInit() {
 const RUNWAY_DATA = {
   // Bay Area
   KPAO:[130,310], KSFO:[10,100,190,280], KOAK:[100,280], KSJC:[120,300],
-  KSQL:[120,300], KNUQ:[140,320], KRHV:[130,310], KLVK:[70,250],
+  KSQL:[120,300], KNUQ:[140,320], KRHV:[130,310], KLVK:[91,271],
   KCCR:[20,200], KHAF:[120,300], KAPC:[60,240,180,360], KSTS:[140,320,20,200],
-  KWVI:[20,200,80,260], KMRY:[100,280], KSCK:[110,290], KMOD:[100,280],
-  KFAT:[120,300], KSMF:[110,290,160,340], KSBA:[70,250], KSBP:[120,300],
+  KWVI:[20,200,80,260], KMRY:[100,280], KSCK:[110,290], KMOD:[124,304],
+  KFAT:[120,300], KSMF:[160,340], KSBA:[70,250], KSBP:[120,300],
   // Pacific NW
   KSEA:[160,340], KBFI:[130,310], KPAE:[160,340], KPDX:[100,280,30,210],
-  KGEG:[20,200,70,250], KEUG:[160,340], KMFR:[50,230,140,320],
+  KGEG:[45,70,225,270], KEUG:[160,340], KMFR:[50,230,140,320],
   // Southern CA
-  KLAX:[60,70,240,250], KVNY:[160,340], KBUR:[150,330], KLGB:[120,300],
+  KLAX:[70,83,250,263], KVNY:[160,340], KBUR:[150,330], KLGB:[120,300],
   KSNA:[200,20], KONT:[70,250], KPSP:[130,310], KSAN:[270,90], KSMO:[210,30],
   // Nevada / Arizona
-  KLAS:[70,190,250,10], KRNO:[160,340,70,250], KTRK:[100,280], KPHX:[80,260], KTUS:[110,290,30,210],
+  KLAS:[70,190,250,10], KRNO:[160,340,70,250], KTRK:[100,280], KPHX:[80,260], KTUS:[135,315,30,210],
   KSDL:[210,30],
   // Mountain
-  KDEN:[70,160,250,340], KCOS:[120,300], KSLC:[160,340], KBOI:[100,280,30,210],
+  KDEN:[70,160,250,340], KCOS:[120,300], KSLC:[160,340], KBOI:[115,295],
   KBZN:[120,300],
   // Northeast
   KJFK:[40,130,220,310], KLGA:[40,130,220,310], KEWR:[40,110,220,290],
   KTEB:[190,10], KBOS:[40,90,150,220,270,330], KPHL:[90,270,350,170],
   KBWI:[100,280,150,330], KDCA:[40,220,30,210], KIAD:[120,300,190,10],
   KPIT:[100,280,140,320], KBUF:[140,320,230,50], KSYR:[100,280,150,330],
-  KALB:[190,10], KRIC:[160,340], KPVD:[160,340], KMHT:[170,350], KBDL:[60,240],
+  KALB:[190,10,100,280], KRIC:[160,340], KPVD:[160,340], KMHT:[170,350], KBDL:[60,240],
+  KBDR:[60,240,110,290], KHVN:[20,200], KGON:[50,230], KORH:[110,290], KEEN:[140,320],
   // Southeast
   KATL:[80,90,260,270], KMIA:[90,80,270,260], KFLL:[90,270], KPBI:[90,270],
   KMCO:[180,360,170,350], KTPA:[190,100,10,280], KRSW:[60,240],
@@ -774,21 +775,21 @@ const RUNWAY_DATA = {
   KCHS:[150,330], KMSY:[110,290,180,360], KMEM:[180,360,270,90],
   KBNA:[130,310,20,200], KTYS:[230,50],
   // Midwest
-  KORD:[40,90,100,140,220,270,280,320], KMDW:[130,310], KMSP:[120,170,300,350],
-  KDTW:[220,230,40,50], KCVG:[90,180,270,360], KSTL:[120,110,300,290],
+  KORD:[40,90,100,220,270,280], KMDW:[130,310], KMSP:[120,170,300,350],
+  KDTW:[29,89,209,269], KCVG:[90,180,270,360], KSTL:[120,110,300,290],
   KMCI:[90,180,270,360], KGRR:[80,260], KMKE:[80,260,130,310], KIND:[50,230],
   KCMH:[100,280], KCLE:[60,240], KDSM:[130,310],
   // South Central
-  KDFW:[130,180,310,360], KDAL:[130,310,60,240], KADS:[150,330],
+  KDFW:[130,180,310,360], KDAL:[136,316], KADS:[150,330],
   KIAH:[90,80,270,260,140,320], KHOU:[130,310], KSAT:[130,310,30,210],
-  KAUS:[180,360,130,310], KELP:[260,80], KABQ:[210,30,80,260],
+  KAUS:[180,360], KELP:[260,80], KABQ:[210,30,80,260],
   KOKC:[180,360,130,310], KTUL:[180,360],
   // Alaska / Hawaii
   PANC:[70,150,250,330], PAFA:[200,20], PAJN:[80,260],
   PHNL:[80,40,260,220], PHKO:[180,360], PHOG:[50,230],
   // Canada
   CYVR:[80,120,260,300], CYYC:[170,280,350,100], CYYZ:[60,150,240,330],
-  CYUL:[60,100,240,280], CYOW:[140,320], CYHZ:[150,60,330,240],
+  CYUL:[60,240], CYOW:[140,320], CYHZ:[150,60,330,240],
   // Europe
   EGLL:[90,270], EGKK:[80,260], EGCC:[50,230], EGPH:[60,240],
   LFPG:[90,80,270,260], LFPO:[80,260], EDDF:[80,70,260,250],
@@ -800,10 +801,10 @@ const RUNWAY_DATA = {
   // Middle East / Asia
   OMDB:[120,300,130,310], OMAA:[130,310], OTBD:[160,340], LLBG:[80,260],
   RJTT:[160,340], RJAA:[160,340], RKSI:[150,330], VHHH:[70,250],
-  WSSS:[20,200], ZBAA:[150,180,330,360],
+  WSSS:[20,200], ZBAA:[173,180,353,360],
   // Aus / NZ
   YSSY:[160,70,340,250], YMML:[160,270,340,90], YBBN:[140,10,320,190],
-  NZAA:[50,230], FAOR:[30,10,210,190],
+  NZAA:[72,252], FAOR:[30,10,210,190],
 };
 
 // Tracks airports currently being fetched so we don't send duplicate requests.
@@ -1022,11 +1023,12 @@ function runwayWindViz(icao, wind, confirmedRwy = null, forceConfirmed = false) 
   const wDir = parseInt(wind.dir);
   const wSpd = wind.spd || 0;
 
-  // If phone ATIS confirmed a specific runway, use it
+  // If a confirmed runway is known, use it — look up precise heading or derive from designator
   if (confirmedRwy) {
-    const confirmedH = rwyDesignatorToHeading(icao, confirmedRwy);
+    const confirmedH = rwyDesignatorToHeading(icao, confirmedRwy)
+      ?? (() => { const n = parseInt(confirmedRwy); return n ? (n * 10) % 360 || 360 : null; })();
     if (confirmedH !== null) {
-      return runwayWindSvg(icao, Math.round(confirmedH / 10) || 36, confirmedH, wDir, wSpd, true);
+      return runwayWindSvg(icao, parseInt(confirmedRwy) || Math.round(confirmedH / 10) || 36, confirmedH, wDir, wSpd, true);
     }
   }
 
@@ -1055,7 +1057,7 @@ function runwayWindSvg(uid, rwyNum, rwyHeading, windDir, windSpd, confirmed = fa
 
   // Headwind arrow — angled to match actual wind direction relative to runway heading
   // Positioned left of runway if wind has left component, right if right component
-  const hwBarLen = Math.min(hwAbs * 3, 50);
+  const hwBarLen = hwAbs >= 0.5 ? Math.max(14, Math.min(hwAbs * 3, 50)) : 0;
   const hwRefY   = 55;
   const hwTipX   = Math.sin(rad) >= 0 ? 128 : 72;  // right side for right/zero component, left for left
   const hwTipY   = hwRefY;
@@ -1738,16 +1740,18 @@ function entryHtml(entry, icao = '') {
   let viz = '', activeH = null;
   if (icao) {
     const arrRwy = entry.runways?.arr?.[0];
-    activeH = rwyDesignatorToHeading(icao, arrRwy);
-    if (activeH !== null) {
-      const rwyNum = Math.round(activeH / 10) || 36;
+    if (arrRwy) {
+      // Precise heading from our runway data, or derive from designator (e.g. "28" → 280°)
+      activeH = rwyDesignatorToHeading(icao, arrRwy)
+        ?? (() => { const n = parseInt(arrRwy); return n ? (n * 10) % 360 || 360 : null; })();
+    }
+    if (activeH !== null && arrRwy) {
+      const rwyNum = parseInt(arrRwy) || Math.round(activeH / 10) || 36;
       const w = entry.wind;
       const isVRB = w?.dir === 'VRB';
       const wDir = (!w || w.dir === null || isVRB) ? 0 : (parseInt(w.dir) || 0);
       const wSpd = (!w || w.dir === null || isVRB) ? 0 : (w.spd || 0);
       viz = runwayWindSvg(icao, rwyNum, activeH, wDir, wSpd, true, entry.runways); // D-ATIS confirmed runway
-    } else if (arrRwy) {
-      viz = runwayWindViz(icao, entry.wind, arrRwy, true); // runway from D-ATIS but not in our heading data
     }
     // No viz when D-ATIS has no runway info — don't show wind-computed guess
   }
