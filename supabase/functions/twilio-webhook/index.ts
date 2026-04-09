@@ -17,22 +17,37 @@ serve(async (req) => {
     return new Response('ok', { status: 200 })
   }
 
+  // Discard short recordings (silence timeouts, DTMF, pre-ATIS segments).
+  // Real ATIS/AWOS is always ≥ 30 s; anything under 15 s is debris.
+  if (recordingDuration !== null && recordingDuration < 15) {
+    return new Response('ok', { status: 200 })
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
 
   // Resolve job
-  let job: { id: string; icao: string } | null = null
+  let job: { id: string; icao: string; status: string; recording_duration_sec: number | null } | null = null
   if (jobId) {
-    const { data } = await supabase.from('atis_jobs').select('id, icao').eq('id', jobId).maybeSingle()
+    const { data } = await supabase.from('atis_jobs').select('id, icao, status, recording_duration_sec').eq('id', jobId).maybeSingle()
     job = data
   }
   if (!job && callSid) {
-    const { data } = await supabase.from('atis_jobs').select('id, icao').eq('call_sid', callSid).maybeSingle()
+    const { data } = await supabase.from('atis_jobs').select('id, icao, status, recording_duration_sec').eq('call_sid', callSid).maybeSingle()
     job = data
   }
   if (!job) return new Response('job not found', { status: 404 })
+
+  // If job already completed with a longer recording, skip this one.
+  // (Twilio can deliver multiple callbacks; we only want the longest recording.)
+  if (job.status === 'complete') {
+    const prevDur = job.recording_duration_sec ?? 0
+    if (recordingDuration === null || recordingDuration <= prevDur) {
+      return new Response('ok', { status: 200 })
+    }
+  }
 
   await supabase.from('atis_jobs').update({
     status: 'transcribing',
