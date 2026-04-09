@@ -665,7 +665,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-09.3';
+const BUILD = '2026-04-09.4';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 // ─── D-ATIS airport registry ──────────────────────────────────────────────────
@@ -2438,8 +2438,8 @@ function phoneAtisStatusHtml(icao) {
     const ft = new Date(job.fetchedAt);
     const hhmm = fmtTime(ft, { hour: '2-digit', minute: '2-digit' });
     const sType = job.stationType ?? stationTypes[icao] ?? null;
-    const nextRefresh = nextRefreshText(sType, job.fetchedAt);
-    html += `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">Retrieved ${hhmm} · ${nextRefresh}</div>`;
+    const refreshLine = weatherOnly ? '' : ` · ${nextRefreshText(sType, job.fetchedAt)}`;
+    html += `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">Retrieved ${hhmm}${refreshLine}</div>`;
   }
 
   if (job.status === 'complete' && job.parsed) {
