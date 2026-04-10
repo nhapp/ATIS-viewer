@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ATIS Viewer — Sign In</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    :root {
+      --bg: #070c18; --surface: #0d1525; --surface-2: #131e30;
+      --border: #1e2d45; --accent: #00b4d8;
+      --text: #ccd6f6; --text-dim: #8892b0;
+      --green: #64ffda; --amber: #ffb347; --red: #ff6b6b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'SF Mono','Fira Code','JetBrains Mono','Courier New',monospace;
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+    }
+    .header-back { font-size:12px; color:var(--text-dim); text-decoration:none; letter-spacing:1px; border:1px solid var(--border); padding:4px 10px; border-radius:4px; transition:all 0.2s; }
+    .header-back:hover { border-color:var(--accent); color:var(--accent); }
+    .header-title { font-size:15px; font-weight:700; color:var(--accent); letter-spacing:2px; }
+
+    .wrap {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 32px 16px;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 32px; width: 100%; max-width: 400px;
+    }
+    .card-title { font-size:11px; font-weight:700; letter-spacing:3px; color:var(--text-dim); margin-bottom:24px; }
+
+    /* Tabs */
+    .tabs { display:flex; gap:0; margin-bottom:28px; border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+    .tab {
+      flex:1; padding:8px; font-family:inherit; font-size:11px; font-weight:700;
+      letter-spacing:1px; cursor:pointer; background:transparent; border:none;
+      color:var(--text-dim); transition:all 0.2s;
+    }
+    .tab.active { background:var(--accent); color:#000; }
+    .tab:not(.active):hover { background:var(--surface-2); color:var(--text); }
+
+    /* Forms */
+    .form-view { display:none; }
+    .form-view.active { display:block; }
+
+    .field { margin-bottom:16px; }
+    label { display:block; font-size:9px; font-weight:700; letter-spacing:1.5px; color:var(--text-dim); margin-bottom:6px; }
+    input[type=email], input[type=password], input[type=tel] {
+      width:100%; background:var(--surface-2); border:1px solid var(--border);
+      color:var(--text); padding:10px 12px; border-radius:6px;
+      font-family:inherit; font-size:13px; outline:none; transition:border-color 0.2s;
+    }
+    input:focus { border-color:var(--accent); }
+    input::placeholder { color:var(--text-dim); }
+
+    .btn-primary {
+      width:100%; padding:11px; background:var(--accent); color:#000;
+      border:none; border-radius:6px; font-family:inherit; font-size:12px;
+      font-weight:900; letter-spacing:2px; cursor:pointer; transition:opacity 0.2s;
+      margin-top:4px;
+    }
+    .btn-primary:hover { opacity:0.85; }
+    .btn-primary:disabled { opacity:0.4; cursor:default; }
+
+    .link-btn {
+      background:none; border:none; color:var(--accent); font-family:inherit;
+      font-size:11px; cursor:pointer; padding:0; letter-spacing:0.5px;
+      text-decoration:underline;
+    }
+    .link-btn:hover { color:var(--text); }
+
+    .helper { font-size:11px; color:var(--text-dim); margin-top:14px; text-align:center; }
+
+    .msg { font-size:11px; margin-top:14px; padding:10px 12px; border-radius:6px; display:none; }
+    .msg.ok  { background:rgba(100,255,218,0.08); border:1px solid rgba(100,255,218,0.3); color:var(--green); display:block; }
+    .msg.err { background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.3); color:var(--red);   display:block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="header-back">← ATIS VIEWER</a>
+  <span class="header-title">✈ ATIS VIEWER</span>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="card-title">ACCOUNT ACCESS</div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('signin')">SIGN IN</button>
+      <button class="tab" onclick="showTab('signup')">CREATE ACCOUNT</button>
+    </div>
+
+    <!-- Sign In -->
+    <div class="form-view active" id="view-signin">
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="si-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>PASSWORD</label>
+        <input type="password" id="si-pass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-primary" id="si-btn" onclick="signIn()">SIGN IN</button>
+      <div class="helper">
+        <button class="link-btn" onclick="showTab('forgot')">Forgot password?</button>
+      </div>
+      <div class="msg" id="si-msg"></div>
+    </div>
+
+    <!-- Sign Up -->
+    <div class="form-view" id="view-signup">
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="su-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>PASSWORD</label>
+        <input type="password" id="su-pass" placeholder="Min. 8 characters" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>CONFIRM PASSWORD</label>
+        <input type="password" id="su-pass2" placeholder="Re-enter password" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>MOBILE PHONE <span style="font-weight:400;letter-spacing:0">(for SMS alerts)</span></label>
+        <input type="tel" id="su-phone" placeholder="+1 (555) 123-4567" autocomplete="tel">
+      </div>
+      <button class="btn-primary" id="su-btn" onclick="signUp()">CREATE ACCOUNT</button>
+      <div class="msg" id="su-msg"></div>
+    </div>
+
+    <!-- Forgot Password -->
+    <div class="form-view" id="view-forgot">
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:18px;line-height:1.6">
+        Enter your email and we'll send a password reset link.
+      </p>
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="fp-email" placeholder="you@example.com">
+      </div>
+      <button class="btn-primary" onclick="forgotPassword()">SEND RESET LINK</button>
+      <div class="helper">
+        <button class="link-btn" onclick="showTab('signin')">Back to sign in</button>
+      </div>
+      <div class="msg" id="fp-msg"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://zkilbgilzoxlxbyzyqgn.supabase.co';
+const SB_KEY = 'sb_publishable_c4O8q_kirKjnIViQ-P6vag_SeKEL4Pj';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+// Redirect if already logged in
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) window.location.href = 'account.html';
+});
+
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['signin','signup','forgot'].indexOf(tab) === i);
+  });
+  document.querySelectorAll('.form-view').forEach(v => v.classList.remove('active'));
+  document.getElementById(`view-${tab}`).classList.add('active');
+}
+
+function setMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `msg ${type}`;
+}
+
+async function signIn() {
+  const email = document.getElementById('si-email').value.trim();
+  const pass  = document.getElementById('si-pass').value;
+  if (!email || !pass) return setMsg('si-msg', 'Please fill in all fields.', 'err');
+  const btn = document.getElementById('si-btn');
+  btn.disabled = true; btn.textContent = 'SIGNING IN…';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    setMsg('si-msg', error.message, 'err');
+    btn.disabled = false; btn.textContent = 'SIGN IN';
+  } else {
+    const redir = new URLSearchParams(location.search).get('redirect') || 'account.html';
+    window.location.href = redir;
+  }
+}
+
+async function signUp() {
+  const email  = document.getElementById('su-email').value.trim();
+  const pass   = document.getElementById('su-pass').value;
+  const pass2  = document.getElementById('su-pass2').value;
+  const phone  = document.getElementById('su-phone').value.trim();
+  if (!email || !pass) return setMsg('su-msg', 'Please fill in all fields.', 'err');
+  if (pass !== pass2)  return setMsg('su-msg', 'Passwords do not match.', 'err');
+  if (pass.length < 8) return setMsg('su-msg', 'Password must be at least 8 characters.', 'err');
+
+  const btn = document.getElementById('su-btn');
+  btn.disabled = true; btn.textContent = 'CREATING ACCOUNT…';
+
+  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  if (error) {
+    setMsg('su-msg', error.message, 'err');
+    btn.disabled = false; btn.textContent = 'CREATE ACCOUNT';
+    return;
+  }
+
+  // Save phone to profile if provided
+  if (phone && data.user) {
+    await sb.from('user_profiles').update({ phone }).eq('id', data.user.id);
+  }
+
+  setMsg('su-msg', '✅ Account created! Check your email to confirm, then sign in.', 'ok');
+  btn.disabled = false; btn.textContent = 'CREATE ACCOUNT';
+}
+
+async function forgotPassword() {
+  const email = document.getElementById('fp-email').value.trim();
+  if (!email) return setMsg('fp-msg', 'Please enter your email.', 'err');
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: `${location.origin}/auth.html`,
+  });
+  if (error) setMsg('fp-msg', error.message, 'err');
+  else setMsg('fp-msg', '✅ Reset link sent — check your email.', 'ok');
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const active = document.querySelector('.form-view.active')?.id;
+  if (active === 'view-signin') signIn();
+  if (active === 'view-signup') signUp();
+  if (active === 'view-forgot') forgotPassword();
+});
+</script>
+</body>
+</html>

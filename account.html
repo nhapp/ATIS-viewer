@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ATIS Viewer — Account</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    :root {
+      --bg: #070c18; --surface: #0d1525; --surface-2: #131e30;
+      --border: #1e2d45; --accent: #00b4d8;
+      --text: #ccd6f6; --text-dim: #8892b0;
+      --green: #64ffda; --amber: #ffb347; --red: #ff6b6b;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'SF Mono','Fira Code','JetBrains Mono','Courier New',monospace;
+      min-height:100vh;
+    }
+    header {
+      background:var(--surface); border-bottom:1px solid var(--border);
+      padding:12px 20px; display:flex; align-items:center; gap:16px;
+    }
+    .header-back { font-size:12px; color:var(--text-dim); text-decoration:none; letter-spacing:1px; border:1px solid var(--border); padding:4px 10px; border-radius:4px; transition:all 0.2s; }
+    .header-back:hover { border-color:var(--accent); color:var(--accent); }
+    .header-title { font-size:15px; font-weight:700; color:var(--accent); letter-spacing:2px; }
+    .header-email { margin-left:auto; font-size:11px; color:var(--text-dim); }
+    .sign-out-btn {
+      font-size:11px; background:transparent; border:1px solid var(--border);
+      color:var(--text-dim); padding:4px 10px; border-radius:4px; cursor:pointer;
+      font-family:inherit; letter-spacing:1px; transition:all 0.2s;
+    }
+    .sign-out-btn:hover { border-color:var(--red); color:var(--red); }
+
+    .main { padding:24px 20px; max-width:900px; margin:0 auto; }
+
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
+
+    .card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:10px; padding:22px;
+    }
+    .card-title { font-size:10px; font-weight:700; letter-spacing:3px; color:var(--text-dim); margin-bottom:18px; }
+
+    /* Balance */
+    .balance-amount {
+      font-size:42px; font-weight:900; letter-spacing:2px;
+      color:var(--green); line-height:1;
+    }
+    .balance-label { font-size:10px; color:var(--text-dim); letter-spacing:1px; margin-top:6px; margin-bottom:20px; }
+
+    /* Amount pills */
+    .amount-pills { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .pill {
+      padding:7px 14px; border:1px solid var(--border); border-radius:20px;
+      font-family:inherit; font-size:12px; font-weight:700; letter-spacing:1px;
+      cursor:pointer; background:transparent; color:var(--text-dim); transition:all 0.2s;
+    }
+    .pill:hover, .pill.selected { border-color:var(--accent); color:var(--accent); background:rgba(0,180,216,0.08); }
+    .custom-amount {
+      width:120px; background:var(--surface-2); border:1px solid var(--border);
+      color:var(--text); padding:7px 12px; border-radius:20px; font-family:inherit;
+      font-size:12px; outline:none; transition:border-color 0.2s;
+    }
+    .custom-amount:focus { border-color:var(--accent); }
+    .custom-amount::placeholder { color:var(--text-dim); }
+
+    /* Stripe card element */
+    #card-section { display:none; margin-top:16px; }
+    #card-element {
+      background:var(--surface-2); border:1px solid var(--border);
+      border-radius:6px; padding:12px; margin-bottom:14px;
+    }
+    #card-element.StripeElement--focus { border-color:var(--accent); }
+
+    .btn-primary {
+      padding:10px 20px; background:var(--accent); color:#000;
+      border:none; border-radius:6px; font-family:inherit; font-size:12px;
+      font-weight:900; letter-spacing:2px; cursor:pointer; transition:opacity 0.2s;
+    }
+    .btn-primary:hover { opacity:0.85; }
+    .btn-primary:disabled { opacity:0.4; cursor:default; }
+    .btn-outline {
+      padding:10px 20px; background:transparent; border:1px solid var(--accent);
+      color:var(--accent); border-radius:6px; font-family:inherit; font-size:12px;
+      font-weight:700; letter-spacing:1px; cursor:pointer; transition:background 0.2s;
+    }
+    .btn-outline:hover { background:rgba(0,180,216,0.1); }
+
+    /* Profile fields */
+    .field { margin-bottom:14px; }
+    label { display:block; font-size:9px; font-weight:700; letter-spacing:1.5px; color:var(--text-dim); margin-bottom:6px; }
+    input[type=email], input[type=tel] {
+      width:100%; background:var(--surface-2); border:1px solid var(--border);
+      color:var(--text); padding:9px 12px; border-radius:6px;
+      font-family:inherit; font-size:13px; outline:none; transition:border-color 0.2s;
+    }
+    input[type=email]:read-only { opacity:0.5; cursor:default; }
+    input[type=tel]:focus { border-color:var(--accent); }
+    input::placeholder { color:var(--text-dim); }
+
+    /* Transactions */
+    .tx-list { margin-top:0; }
+    .tx-row {
+      display:flex; align-items:center; padding:10px 0;
+      border-bottom:1px solid var(--border); font-size:11px; gap:10px;
+    }
+    .tx-row:last-child { border-bottom:none; }
+    .tx-desc { flex:1; color:var(--text); }
+    .tx-date { font-size:10px; color:var(--text-dim); white-space:nowrap; }
+    .tx-amount { font-weight:700; min-width:60px; text-align:right; white-space:nowrap; }
+    .tx-amount.credit { color:var(--green); }
+    .tx-amount.debit  { color:var(--red); }
+    .tx-empty { font-size:11px; color:var(--text-dim); text-align:center; padding:20px 0; }
+
+    .msg { font-size:11px; margin-top:12px; padding:10px 12px; border-radius:6px; display:none; }
+    .msg.ok  { background:rgba(100,255,218,0.08); border:1px solid rgba(100,255,218,0.3); color:var(--green); display:block; }
+    .msg.err { background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.3); color:var(--red);   display:block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="header-back">← ATIS VIEWER</a>
+  <span class="header-title">✈ MY ACCOUNT</span>
+  <span class="header-email" id="header-email"></span>
+  <button class="sign-out-btn" onclick="signOut()">SIGN OUT</button>
+</header>
+
+<div class="main">
+  <div class="grid">
+
+    <!-- Balance + Top-up -->
+    <div class="card">
+      <div class="card-title">ACCOUNT BALANCE</div>
+      <div class="balance-amount" id="balance-display">$0.00</div>
+      <div class="balance-label">AVAILABLE CREDITS</div>
+
+      <div class="amount-pills">
+        <button class="pill" onclick="selectAmount(500)">$5</button>
+        <button class="pill" onclick="selectAmount(1000)">$10</button>
+        <button class="pill" onclick="selectAmount(2500)">$25</button>
+        <input type="number" class="custom-amount" id="custom-amount" placeholder="Custom $" min="5" step="1"
+               oninput="selectAmount(Math.round(parseFloat(this.value||0)*100))">
+      </div>
+
+      <button class="btn-outline" id="add-credits-btn" onclick="showCardForm()">ADD CREDITS</button>
+
+      <div id="card-section">
+        <div id="card-element"></div>
+        <button class="btn-primary" id="pay-btn" onclick="confirmPayment()">PAY <span id="pay-amount"></span></button>
+      </div>
+      <div class="msg" id="pay-msg"></div>
+    </div>
+
+    <!-- Profile -->
+    <div class="card">
+      <div class="card-title">PROFILE</div>
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="profile-email" readonly>
+      </div>
+      <div class="field">
+        <label>MOBILE PHONE <span style="font-weight:400;letter-spacing:0">(for SMS alerts)</span></label>
+        <input type="tel" id="profile-phone" placeholder="+1 (555) 123-4567">
+      </div>
+      <button class="btn-outline" onclick="saveProfile()">SAVE CHANGES</button>
+      <div class="msg" id="profile-msg"></div>
+    </div>
+
+  </div>
+
+  <!-- Transactions -->
+  <div class="card">
+    <div class="card-title">TRANSACTION HISTORY</div>
+    <div class="tx-list" id="tx-list">
+      <div class="tx-empty">Loading…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL   = 'https://zkilbgilzoxlxbyzyqgn.supabase.co';
+const SB_KEY   = 'sb_publishable_c4O8q_kirKjnIViQ-P6vag_SeKEL4Pj';
+const EDGE_URL = `${SB_URL}/functions/v1`;
+const STRIPE_PK = 'pk_live_51TKW9VQRDtalg6nesI10OgclHNQQG6du3kE7o59dCO3OWhREDHUhI5rm2AwmgnlsneYJZjcGoGmZ9U1tKRw9hjIH005VIU3X7z';
+
+const sb     = window.supabase.createClient(SB_URL, SB_KEY);
+const stripe = Stripe(STRIPE_PK);
+const elements = stripe.elements({ appearance: { theme: 'night', variables: { colorBackground: '#131e30', colorText: '#ccd6f6', fontFamily: 'monospace' } } });
+const cardEl   = elements.create('card', { style: { base: { color: '#ccd6f6', fontFamily: 'monospace', fontSize: '14px', '::placeholder': { color: '#8892b0' } } } });
+
+let session = null;
+let selectedCents = 0;
+
+// ── Auth gate ─────────────────────────────────────────────────────────────────
+sb.auth.getSession().then(({ data: { session: s } }) => {
+  if (!s) { window.location.href = 'auth.html'; return; }
+  session = s;
+  document.getElementById('header-email').textContent = s.user.email;
+  document.getElementById('profile-email').value = s.user.email;
+  loadProfile();
+  loadTransactions();
+});
+
+sb.auth.onAuthStateChange((event, s) => {
+  if (event === 'SIGNED_OUT') window.location.href = 'auth.html';
+  if (s) session = s;
+});
+
+async function signOut() {
+  await sb.auth.signOut();
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+async function loadProfile() {
+  const { data } = await sb.from('user_profiles').select('phone, balance_cents').eq('id', session.user.id).maybeSingle();
+  if (!data) return;
+  document.getElementById('profile-phone').value = data.phone ?? '';
+  updateBalanceDisplay(data.balance_cents ?? 0);
+}
+
+async function saveProfile() {
+  const phone = document.getElementById('profile-phone').value.trim();
+  const { error } = await sb.from('user_profiles').update({ phone }).eq('id', session.user.id);
+  const msg = document.getElementById('profile-msg');
+  if (error) { msg.textContent = error.message; msg.className = 'msg err'; }
+  else        { msg.textContent = '✅ Profile saved.'; msg.className = 'msg ok'; }
+  setTimeout(() => msg.className = 'msg', 3000);
+}
+
+// ── Balance ───────────────────────────────────────────────────────────────────
+function updateBalanceDisplay(cents) {
+  document.getElementById('balance-display').textContent = `$${(cents / 100).toFixed(2)}`;
+}
+
+function selectAmount(cents) {
+  selectedCents = cents;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+  document.getElementById('pay-amount').textContent = `$${(cents / 100).toFixed(2)}`;
+  document.getElementById('card-section').style.display = 'none';
+}
+
+function showCardForm() {
+  if (!selectedCents || selectedCents < 500) {
+    const msg = document.getElementById('pay-msg');
+    msg.textContent = 'Select an amount first (minimum $5).';
+    msg.className = 'msg err';
+    setTimeout(() => msg.className = 'msg', 3000);
+    return;
+  }
+  document.getElementById('card-section').style.display = 'block';
+  cardEl.mount('#card-element');
+  document.getElementById('pay-amount').textContent = `$${(selectedCents / 100).toFixed(2)}`;
+}
+
+async function confirmPayment() {
+  const btn = document.getElementById('pay-btn');
+  const msg = document.getElementById('pay-msg');
+  btn.disabled = true; btn.textContent = 'PROCESSING…';
+
+  try {
+    // Create PaymentIntent server-side
+    const res = await fetch(`${EDGE_URL}/create-payment-intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ amount_cents: selectedCents }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    // Confirm card payment
+    const { error: stripeErr } = await stripe.confirmCardPayment(data.client_secret, {
+      payment_method: { card: cardEl },
+    });
+    if (stripeErr) throw new Error(stripeErr.message);
+
+    msg.textContent = `✅ $${(selectedCents / 100).toFixed(2)} added to your account!`;
+    msg.className = 'msg ok';
+    document.getElementById('card-section').style.display = 'none';
+
+    // Poll for balance update (webhook fires asynchronously)
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      const { data: profile } = await sb.from('user_profiles').select('balance_cents').eq('id', session.user.id).maybeSingle();
+      if (profile) updateBalanceDisplay(profile.balance_cents);
+      if (attempts >= 8) { clearInterval(poll); loadTransactions(); }
+    }, 1500);
+
+  } catch (err) {
+    msg.textContent = `⚠ ${err.message}`;
+    msg.className = 'msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = `PAY $${(selectedCents / 100).toFixed(2)}`;
+  }
+}
+
+// ── Transactions ──────────────────────────────────────────────────────────────
+async function loadTransactions() {
+  const { data } = await sb
+    .from('balance_transactions')
+    .select('amount_cents, type, description, created_at')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  const el = document.getElementById('tx-list');
+  if (!data?.length) {
+    el.innerHTML = '<div class="tx-empty">No transactions yet.</div>';
+    return;
+  }
+  el.innerHTML = data.map(tx => {
+    const credit = tx.amount_cents > 0;
+    const amt    = `${credit ? '+' : ''}$${Math.abs(tx.amount_cents / 100).toFixed(2)}`;
+    const date   = new Date(tx.created_at).toLocaleDateString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    return `<div class="tx-row">
+      <span class="tx-desc">${tx.description || tx.type}</span>
+      <span class="tx-date">${date}</span>
+      <span class="tx-amount ${credit ? 'credit' : 'debit'}">${amt}</span>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
