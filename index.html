@@ -701,7 +701,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-09.4';
+const BUILD = '2026-04-13.1';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 // ─── D-ATIS airport registry ──────────────────────────────────────────────────
@@ -2126,6 +2126,8 @@ async function loadAvgWaitTime() {
   } catch (_) {}
 }
 
+const ATIS_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes — mark stale jobs as error
+
 // Lightweight per-second tick — only updates countdown text nodes, no re-render
 function startCountdownTick() {
   if (_countdownTick) return;
@@ -2133,14 +2135,19 @@ function startCountdownTick() {
     let anyActive = false;
     for (const [icao, job] of Object.entries(atisJobs)) {
       if (job.status !== 'calling' && job.status !== 'transcribing') continue;
+      const elapsed = Math.floor((Date.now() - (job.startedAt || Date.now())) / 1000);
+
+      // Timeout: give up after 3 minutes
+      if (elapsed > ATIS_TIMEOUT_MS / 1000) {
+        atisJobs[icao] = { ...job, status: 'error', error: 'No response after 3 min — Twilio or transcription may have failed. Try again.' };
+        renderAirport(icao);
+        continue;
+      }
+
       anyActive = true;
       const el = document.getElementById(`atis-cd-${icao}`);
-      if (!el || !job.startedAt) continue;
-      const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
-      const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
-      el.textContent = remaining > 0
-        ? ` · EST: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
-        : ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
+      if (!el) continue;
+      el.textContent = ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
     }
     if (!anyActive) { clearInterval(_countdownTick); _countdownTick = null; }
   }, 1000);
@@ -2469,10 +2476,7 @@ function phoneAtisStatusHtml(icao) {
   let cdText = '';
   if (isActive && job.startedAt) {
     const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
-    const remaining = Math.ceil((EST_WAIT_MS / 1000) - elapsed);
-    cdText = remaining > 0
-      ? ` · EST: ${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`
-      : ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
+    cdText = ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
   }
 
   let html = `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.05);border:1px solid ${s.color}40">
@@ -2488,9 +2492,12 @@ function phoneAtisStatusHtml(icao) {
 
   if (job.status === 'complete' && job.parsed) {
     const p = job.parsed;
-    html += `<div style="margin-top:8px;font-size:13px;color:var(--text)">`;
-    if (weatherOnly) html += `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;font-style:italic">WEATHER DATA ONLY · NO RUNWAY OR TRAFFIC INFORMATION</div>`;
-    if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}</div>`;
+
+    // Details dropdown — wind/vis/ceiling/altimeter/runway + transcript
+    html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--accent);cursor:pointer;letter-spacing:.5px;user-select:none">▼ Details</summary>
+      <div style="margin-top:8px;font-size:13px;color:var(--text)">`;
+    if (weatherOnly) html += `<div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;letter-spacing:.5px">WEATHER DATA ONLY · NO RUNWAY OR TRAFFIC INFORMATION</div>`;
+    if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.spd === 0 ? 'CALM' : `${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}`}</div>`;
     if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
     if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
     if (p.altimeter)  { const a = String(p.altimeter); const af = a.length === 4 ? a.slice(0,2)+'.'+a.slice(2) : a; html += `<div><span class="data-label">ALTIMETER</span> A${af}</div>`; }
@@ -2506,9 +2513,9 @@ function phoneAtisStatusHtml(icao) {
     if (job.transcription) {
       const normalized = normalizeTranscript(job.transcription);
       const displayTranscript = weatherOnly ? orientAwosTranscript(normalized) : normalized;
-      html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">Transcript</summary>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;white-space:pre-wrap">${displayTranscript}</div></details>`;
+      html += `<div style="font-size:11px;color:var(--text-dim);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);white-space:pre-wrap;line-height:1.6">${displayTranscript}</div>`;
     }
+    html += `</details>`;
   }
 
   if (job.status === 'error' && job.error) {
