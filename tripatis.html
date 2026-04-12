@@ -890,7 +890,7 @@ async function sendTestSms() {
   try {
     const res = await fetch(`${EDGE_URL}/sms-test`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
       body: JSON.stringify({ icao, phone }),
     });
     const data = await res.json();
