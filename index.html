@@ -633,6 +633,8 @@
       /* Stack runway viz and airport layout vertically on small screens */
       .rwy-pair { flex-wrap: wrap !important; }
     }
+    details > summary { list-style: none; display: block; }
+    details > summary::-webkit-details-marker { display: none; }
   </style>
 </head>
 <body>
@@ -2463,7 +2465,7 @@ function phoneAtisStatusHtml(icao) {
     checking:     { icon: '⏳', text: `CHECKING ${stationLabel}…`,    color: '#888888' },
     calling:      { icon: '📞', text: `RETRIEVING ${stationLabel}…`,  color: '#ffb347' },
     transcribing: { icon: '🎙️', text: 'TRANSCRIBING AUDIO…',          color: '#ffb347' },
-    complete:     { icon: '✅', text: `${stationLabel} CURRENT${job.parsed?.code ? ` [${job.parsed.code}]` : ''}`, color: '#64ffda' },
+    complete:     { icon: '✅', text: `${stationLabel} CURRENT${job.parsed?.code ? ` [${job.parsed.code}]` : ''}`, color: (() => { const fc = cache[icao]?.data?.metar?.flightCat; return fc === 'IFR' || fc === 'LIFR' ? '#ff6b6b' : fc === 'MVFR' ? '#6496ff' : '#64ffda'; })() },
     error:        { icon: '⚠️', text: `${stationLabel} FETCH FAILED`,  color: '#ff6b6b' },
     no_phone:     { icon: '📵', text: 'NO PHONE ATIS ON FILE',         color: 'var(--text-dim)' },
   };
@@ -2494,7 +2496,7 @@ function phoneAtisStatusHtml(icao) {
     const p = job.parsed;
 
     // Details dropdown — wind/vis/ceiling/altimeter/runway + transcript
-    html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--accent);cursor:pointer;letter-spacing:.5px;user-select:none">▼ Details</summary>
+    html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--accent);cursor:pointer;letter-spacing:.5px;user-select:none;list-style:none;display:block">▼ Details</summary>
       <div style="margin-top:8px;font-size:13px;color:var(--text)">`;
     if (weatherOnly) html += `<div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;letter-spacing:.5px">WEATHER DATA ONLY · NO RUNWAY OR TRAFFIC INFORMATION</div>`;
     if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.spd === 0 ? 'CALM' : `${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}`}</div>`;

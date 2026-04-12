@@ -54,13 +54,11 @@
     /* ── Airport columns ── */
     .airports-grid {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 16px;
       margin-bottom: 16px;
-      transition: grid-template-columns 0.3s ease;
     }
-    .airports-grid.two-col { grid-template-columns: 1fr 1fr; }
-    @media (max-width: 640px) { .airports-grid.two-col { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .airports-grid { grid-template-columns: 1fr; } }
 
     .col-header {
       font-size: 10px;
@@ -179,19 +177,37 @@
     .eta-label { font-size: 10px; letter-spacing: 2px; color: var(--text-dim); }
     .day-radio { display: flex; align-items: center; gap: 5px; font-size: 11px; letter-spacing: 1px; cursor: pointer; }
     .day-radio input { accent-color: var(--accent); cursor: pointer; }
-    .time-input {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 7px 10px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.2s;
+
+    /* ── Scroll-wheel time picker ── */
+    .time-picker {
+      display: flex; align-items: center; gap: 4px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 10px; user-select: none;
     }
-    .time-input:focus { border-color: var(--accent); }
-    .time-input::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+    .time-picker:focus-within { border-color: var(--accent); }
+    .tp-col { display: flex; flex-direction: column; align-items: center; }
+    .tp-arrow {
+      background: none; border: none; color: var(--text-dim);
+      cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 6px;
+      transition: color 0.15s;
+    }
+    .tp-arrow:hover { color: var(--accent); }
+    .tp-val {
+      font-size: 22px; font-weight: 700; letter-spacing: 1px;
+      color: var(--text); min-width: 2ch; text-align: center;
+      background: none; border: none; outline: none; font-family: inherit;
+      -moz-appearance: textfield;
+    }
+    .tp-val::-webkit-inner-spin-button,
+    .tp-val::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .tp-sep { font-size: 22px; font-weight: 700; color: var(--text-dim); padding: 0 2px; }
+    .tp-ampm {
+      font-size: 13px; font-weight: 700; letter-spacing: 1px;
+      color: var(--accent); cursor: pointer; padding: 4px 6px;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: none; transition: all 0.15s; margin-left: 4px;
+    }
+    .tp-ampm:hover { background: rgba(0,180,216,0.1); }
 
     /* ── Analysis banner ── */
     .analysis-card {
@@ -303,8 +319,8 @@
       <div id="dep-card" class="wx-card empty">Enter departure airport above</div>
     </div>
 
-    <!-- Arrival — hidden until departure selected -->
-    <div class="arr-col" id="arr-col" style="display:none">
+    <!-- Arrival -->
+    <div class="arr-col" id="arr-col">
       <div class="col-header">ARRIVAL AIRPORT</div>
       <div class="search-wrap">
         <input id="arr-input" class="search-input" placeholder="ICAO or airport name…" autocomplete="off">
@@ -325,7 +341,20 @@
         <span class="eta-label">EST ARRIVAL TIME</span>
         <label class="day-radio"><input type="radio" name="eta-day" value="today" checked> TODAY</label>
         <label class="day-radio"><input type="radio" name="eta-day" value="tomorrow"> TOMORROW</label>
-        <input type="time" id="eta-time" class="time-input">
+        <div class="time-picker" id="time-picker">
+          <div class="tp-col">
+            <button class="tp-arrow" onclick="stepHour(1)">▲</button>
+            <input class="tp-val" id="tp-hour" type="number" min="1" max="12" value="12" oninput="clampHour(this)" onchange="onTimeChange()">
+            <button class="tp-arrow" onclick="stepHour(-1)">▼</button>
+          </div>
+          <span class="tp-sep">:</span>
+          <div class="tp-col">
+            <button class="tp-arrow" onclick="stepMin(1)">▲</button>
+            <input class="tp-val" id="tp-min" type="number" min="0" max="59" value="00" oninput="clampMin(this)" onchange="onTimeChange()">
+            <button class="tp-arrow" onclick="stepMin(-1)">▼</button>
+          </div>
+          <button class="tp-ampm" id="tp-ampm" onclick="toggleAmPm()">AM</button>
+        </div>
       </div>
 
       <!-- Analysis -->
@@ -355,7 +384,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-09.5';
+const BUILD = '2026-04-13.1';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 const SB_URL   = 'https://zkilbgilzoxlxbyzyqgn.supabase.co';
@@ -392,12 +421,7 @@ let alertTimer = null;
 
 // ── Progressive reveal ────────────────────────────────────────────────────────
 function revealArrival() {
-  const arrCol = document.getElementById('arr-col');
-  if (arrCol.style.display === 'none') {
-    arrCol.style.display = '';
-    arrCol.classList.add('fade-in');
-    document.getElementById('airports-grid').classList.add('two-col');
-  }
+  // Arrival column is always visible — nothing to reveal
 }
 
 function revealPlanning() {
@@ -629,13 +653,40 @@ async function checkAtisCache(icao) {
 }
 
 // ── ATIS timing analysis ──────────────────────────────────────────────────────
+// ── Scroll-wheel time picker helpers ─────────────────────────────────────────
+function stepHour(dir) {
+  const el = document.getElementById('tp-hour');
+  let v = parseInt(el.value) + dir;
+  if (v > 12) v = 1;
+  if (v < 1)  v = 12;
+  el.value = v;
+  onTimeChange();
+}
+function stepMin(dir) {
+  const el = document.getElementById('tp-min');
+  let v = parseInt(el.value) + dir;
+  if (v > 59) v = 0;
+  if (v < 0)  v = 59;
+  el.value = String(v).padStart(2, '0');
+  onTimeChange();
+}
+function clampHour(el) { let v = parseInt(el.value)||1; if(v>12)v=12; if(v<1)v=1; el.value=v; onTimeChange(); }
+function clampMin(el)  { let v = parseInt(el.value)||0; if(v>59)v=59; if(v<0)v=0; el.value=String(v).padStart(2,'0'); onTimeChange(); }
+function toggleAmPm() {
+  const el = document.getElementById('tp-ampm');
+  el.textContent = el.textContent === 'AM' ? 'PM' : 'AM';
+  onTimeChange();
+}
+function onTimeChange() { runAnalysis(); updateAlertButton(); }
+
 function getEtaDate() {
-  const val = document.getElementById('eta-time').value;
-  if (!val) return null;
-  const [hh, mm] = val.split(':').map(Number);
+  const h   = parseInt(document.getElementById('tp-hour').value) || 12;
+  const m   = parseInt(document.getElementById('tp-min').value)  || 0;
+  const ampm = document.getElementById('tp-ampm').textContent;
+  let hh = h % 12 + (ampm === 'PM' ? 12 : 0);
   const d = new Date();
   if (document.querySelector('input[name="eta-day"]:checked').value === 'tomorrow') d.setDate(d.getDate() + 1);
-  d.setHours(hh, mm, 0, 0);
+  d.setHours(hh, m, 0, 0);
   return d;
 }
 
@@ -839,7 +890,7 @@ async function sendTestSms() {
   try {
     const res = await fetch(`${EDGE_URL}/sms-test`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` },
       body: JSON.stringify({ icao, phone }),
     });
     const data = await res.json();
@@ -856,14 +907,16 @@ async function sendTestSms() {
 }
 
 // ── ETA wire-up ───────────────────────────────────────────────────────────────
-document.getElementById('eta-time').addEventListener('input',  () => { runAnalysis(); updateAlertButton(); });
-document.getElementById('eta-time').addEventListener('change', () => { runAnalysis(); updateAlertButton(); });
-document.querySelectorAll('input[name="eta-day"]').forEach(r => r.addEventListener('change', () => { runAnalysis(); updateAlertButton(); }));
+document.querySelectorAll('input[name="eta-day"]').forEach(r => r.addEventListener('change', onTimeChange));
 
 // Default ETA: now + 2 hours
 const dflt = new Date(Date.now() + 2 * 3600000);
-document.getElementById('eta-time').value =
-  String(dflt.getHours()).padStart(2,'0') + ':' + String(dflt.getMinutes()).padStart(2,'0');
+const dfltH = dflt.getHours();
+const dfltAmPm = dfltH >= 12 ? 'PM' : 'AM';
+const dfltH12  = dfltH % 12 || 12;
+document.getElementById('tp-hour').value  = dfltH12;
+document.getElementById('tp-min').value   = String(dflt.getMinutes()).padStart(2, '0');
+document.getElementById('tp-ampm').textContent = dfltAmPm;
 
 // ── Init search ───────────────────────────────────────────────────────────────
 setupSearch('dep-input', 'dep-dropdown', 'dep');
