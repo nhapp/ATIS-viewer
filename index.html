@@ -503,6 +503,35 @@
     .flight-cat.IFR  { background: #8a1a1a; border: 1px solid #bf2d2d; color: #fff; }
     .flight-cat.LIFR { background: #8a1a5a; border: 1px solid #c44d8a; color: #fff; }
 
+    /* Combined flight-category + ATIS code pill */
+    .cat-atis-badge {
+      display: inline-flex;
+      align-items: stretch;
+      border-radius: 6px;
+      overflow: hidden;
+      font-weight: 900;
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+    .cat-atis-badge .cat-part {
+      font-size: 18px;
+      padding: 5px 12px;
+      display: flex; align-items: center;
+    }
+    .cat-atis-badge .atis-part {
+      font-size: 13px;
+      padding: 5px 10px;
+      display: flex; align-items: center;
+      border-left: 1px solid rgba(255,255,255,0.25);
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+    }
+    .cat-atis-badge.VFR  { background: #1a7a4a; border: 1px solid #2da866; color: #fff; }
+    .cat-atis-badge.MVFR { background: #1a4a8a; border: 1px solid #2d6abf; color: #fff; }
+    .cat-atis-badge.IFR  { background: #8a1a1a; border: 1px solid #bf2d2d; color: #fff; }
+    .cat-atis-badge.LIFR { background: #8a1a5a; border: 1px solid #c44d8a; color: #fff; }
+    .cat-atis-badge .atis-part { background: rgba(0,0,0,0.25); }
+
     .metar-row {
       display: flex;
       gap: 24px;
@@ -639,6 +668,13 @@
     </svg>
     <span class="label">Refresh All</span>
   </button>
+
+  <a href="tripatis.html" class="btn-ghost" style="text-decoration:none">
+    <svg style="display:inline;width:13px;height:13px;vertical-align:middle;margin-right:4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M3 17l4-8 4 4 4-6 4 10"/><circle cx="3" cy="17" r="1" fill="currentColor"/>
+    </svg>
+    <span class="label">Trip Planner</span>
+  </a>
 
   <div id="buildBadge" style="margin-left:auto;font-size:10px;color:var(--text-dim);opacity:0.5;font-family:monospace;letter-spacing:.5px;white-space:nowrap"></div>
 </header>
@@ -1841,16 +1877,24 @@ function renderCard(icao) {
             <div class="info-cell full">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
                 <div style="display:flex;align-items:center;gap:8px">
-                  ${mt.flightCat ? `<span class="flight-cat ${mt.flightCat}">${mt.flightCat}</span>` : ''}
                   ${(() => {
                     const t = stationTypes[icao];
-                    if (!t) return '';
-                    const code = atisJobs[icao]?.parsed?.code;
-                    if (isWeatherOnly(t)) {
-                      return `<span style="font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:var(--text-dim)">${t.replace(/-\w+$/, '').toUpperCase()}</span>`;
+                    const code = (!t || isWeatherOnly(t)) ? null : (atisJobs[icao]?.parsed?.code ?? null);
+                    const cat = mt.flightCat;
+
+                    if (t && isWeatherOnly(t)) {
+                      // AWOS badge standalone
+                      return (cat ? `<span class="flight-cat ${cat}">${cat}</span>` : '') +
+                        `<span style="font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:var(--text-dim)">${t.replace(/-\w+$/, '').toUpperCase()}</span>`;
                     }
-                    if (!code) return ''; // no code yet — don't show plain "ATIS"
-                    return `<span style="font-size:12px;font-weight:700;letter-spacing:1.5px;padding:3px 9px;border-radius:4px;background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.35);color:#64ffda">ATIS: ${code}</span>`;
+
+                    if (cat && code) {
+                      // Combined pill: [VFR | ATIS F]
+                      return `<span class="cat-atis-badge ${cat}"><span class="cat-part">${cat}</span><span class="atis-part">ATIS ${code}</span></span>`;
+                    }
+                    if (cat) return `<span class="flight-cat ${cat}">${cat}</span>`;
+                    if (code) return `<span style="font-size:12px;font-weight:700;letter-spacing:1.5px;padding:3px 9px;border-radius:4px;background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.35);color:#64ffda">ATIS: ${code}</span>`;
+                    return '';
                   })()}
                 </div>
                 <div style="text-align:right;">

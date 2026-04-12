@@ -211,21 +211,25 @@ async function sendSms(to: string, body: string): Promise<void> {
 //   - 1 found → start from first marker to end — at least one complete loop
 //   - 0 found → keep everything (AWOS/non-standard format)
 
+// Phonetic alphabet words Whisper may spell out instead of single letters
+const PHONETIC_WORDS = 'alpha|bravo|charlie|delta|echo|foxtrot|golf|hotel|india|juliet|kilo|lima|mike|november|oscar|papa|quebec|romeo|sierra|tango|uniform|victor|whiskey|x-ray|xray|yankee|zulu'
+const INFO_PAT = new RegExp(`\\binformation\\s+(?:[a-z]\\b|(?:${PHONETIC_WORDS})\\b)`, 'gi')
+const INFO_PAT_TIME = new RegExp(`\\binformation\\s+(?:[a-z]\\b|(?:${PHONETIC_WORDS})\\b)[^.!?]*(?:time|\\d{4})`, 'gi')
+
 function trimToOneAtisLoop(transcript: string): string {
   let m: RegExpExecArray | null
 
-  // Strategy 1: Tower ATIS — "Information [X]" with time ref in same sentence.
-  // We also extend the start backward to capture the airport name, which appears
-  // in the same sentence immediately before "Information [X]".
-  const openPat = /\binformation\s+[a-z]\b[^.!?]*(?:time|\d{4}|zulu)/gi
+  // Strategy 1: Tower ATIS — "Information [X/Foxtrot]" with time ref in same sentence.
+  // Extend start backward to include airport name preceding the marker.
   const indices: number[] = []
-  while ((m = openPat.exec(transcript)) !== null) {
+  INFO_PAT_TIME.lastIndex = 0
+  while ((m = INFO_PAT_TIME.exec(transcript)) !== null) {
     indices.push(m.index)
     if (indices.length === 2) break
   }
   if (indices.length === 0) {
-    const fallback = /\binformation\s+[a-z]\b/gi
-    while ((m = fallback.exec(transcript)) !== null) {
+    INFO_PAT.lastIndex = 0
+    while ((m = INFO_PAT.exec(transcript)) !== null) {
       indices.push(m.index)
       if (indices.length === 2) break
     }
