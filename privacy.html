@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Privacy Policy · TripAtis</title>
+  <style>
+    :root {
+      --bg: #070c18; --surface: #0d1525; --surface-2: #131e30;
+      --border: #1e2d45; --accent: #00b4d8;
+      --text: #ccd6f6; --text-dim: #8892b0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'SF Mono','Fira Code','JetBrains Mono','Courier New',monospace; min-height: 100vh; }
+
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+    .header-back { font-size: 12px; color: var(--text-dim); text-decoration: none; letter-spacing: 1px; border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; transition: all 0.2s; }
+    .header-back:hover { border-color: var(--accent); color: var(--accent); }
+    .header-title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
+
+    .main { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    h1 { font-size: 18px; font-weight: 700; letter-spacing: 3px; color: var(--accent); margin-bottom: 6px; }
+    .effective { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 36px; }
+
+    h2 { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--accent); margin: 28px 0 10px; text-transform: uppercase; }
+    p { font-size: 12px; color: var(--text-dim); line-height: 1.8; margin-bottom: 10px; }
+    ul { margin: 0 0 10px 20px; }
+    ul li { font-size: 12px; color: var(--text-dim); line-height: 1.8; }
+
+    .divider { height: 1px; background: var(--border); margin: 36px 0; }
+
+    footer { text-align: center; padding: 24px 20px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+    footer a { color: var(--text-dim); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="header-back">← ATIS VIEWER</a>
+  <span class="header-title">✈ PRIVACY POLICY</span>
+</header>
+
+<div class="main">
+  <h1>PRIVACY POLICY</h1>
+  <div class="effective">Effective date: April 12, 2026</div>
+
+  <p>TripAtis ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains what information we collect, how we use it, and your rights regarding that information when you use our ATIS Viewer and Trip ATIS Planner services (collectively, the "Service").</p>
+
+  <h2>1. Information We Collect</h2>
+  <p>We collect only the information necessary to provide the Service:</p>
+  <ul>
+    <li><strong>Account information</strong> — email address and password (stored securely via Supabase Auth) when you create an account.</li>
+    <li><strong>Phone number</strong> — if you opt in to SMS ATIS alerts, we collect and store your phone number in E.164 format.</li>
+    <li><strong>Airport selections</strong> — ICAO codes you look up or save as part of using the Service.</li>
+    <li><strong>Usage data</strong> — timestamps of ATIS fetches associated with your account, used for billing and caching purposes.</li>
+    <li><strong>Payment information</strong> — billing transactions are processed by Stripe. We do not store full card numbers or payment credentials on our servers.</li>
+  </ul>
+
+  <h2>2. How We Use Your Information</h2>
+  <ul>
+    <li>To deliver ATIS audio transcription and weather data you request.</li>
+    <li>To send SMS alerts via Twilio when ATIS updates near your departure or arrival time (only if you opt in).</li>
+    <li>To maintain your account balance and process transactions.</li>
+    <li>To improve the Service, diagnose technical issues, and monitor system health.</li>
+    <li>To comply with legal obligations.</li>
+  </ul>
+  <p>We do not use your information for advertising, and we do not sell or rent your personal data to third parties.</p>
+
+  <h2>3. Third-Party Services</h2>
+  <p>The Service relies on the following third-party providers, each with their own privacy practices:</p>
+  <ul>
+    <li><strong>Supabase</strong> — database and authentication infrastructure.</li>
+    <li><strong>Twilio</strong> — SMS delivery for ATIS alerts. Your phone number is transmitted to Twilio solely to send messages you request.</li>
+    <li><strong>Stripe</strong> — payment processing. Stripe's handling of your payment data is governed by Stripe's Privacy Policy.</li>
+    <li><strong>VATSIM METAR API</strong> — publicly available weather data fetched on your behalf; no personal data is transmitted.</li>
+  </ul>
+
+  <h2>4. Data Retention</h2>
+  <p>We retain your account information for as long as your account is active. ATIS fetch logs are retained for billing reconciliation purposes. If you delete your account, your personal data is removed within 30 days, except where retention is required by law.</p>
+  <p>SMS alert subscriptions are single-use and expire automatically after the scheduled alert fires or within 24 hours, whichever comes first.</p>
+
+  <h2>5. Data Security</h2>
+  <p>We use industry-standard security measures including encrypted connections (HTTPS/TLS), hashed passwords, and access-controlled database row-level security. No method of transmission over the internet is 100% secure; we cannot guarantee absolute security.</p>
+
+  <h2>6. Your Rights</h2>
+  <p>Depending on your jurisdiction, you may have the right to:</p>
+  <ul>
+    <li>Access the personal data we hold about you.</li>
+    <li>Request correction of inaccurate data.</li>
+    <li>Request deletion of your account and associated data.</li>
+    <li>Opt out of SMS alerts at any time by replying STOP to any message we send.</li>
+  </ul>
+  <p>To exercise any of these rights, contact us at the address below.</p>
+
+  <h2>7. Children's Privacy</h2>
+  <p>The Service is not directed to children under 13. We do not knowingly collect personal information from children under 13.</p>
+
+  <h2>8. Changes to This Policy</h2>
+  <p>We may update this Privacy Policy from time to time. The effective date at the top of this page will reflect the most recent revision. Continued use of the Service after changes constitutes acceptance of the updated policy.</p>
+
+  <h2>9. Contact</h2>
+  <p>If you have questions or requests regarding this Privacy Policy, please contact us at:<br>
+  <strong>TripAtis</strong><br>
+  privacy@tripatis.com</p>
+
+  <div class="divider"></div>
+  <p style="font-size:11px;color:var(--text-dim)">TripAtis is an independent service and is not affiliated with any airport authority, airline, or air traffic control organization.</p>
+</div>
+
+<footer>
+  <a href="privacy.html">Privacy Policy</a>
+</footer>
+
+</body>
+</html>

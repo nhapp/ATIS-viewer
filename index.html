@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ATIS Viewer</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="atis-widget.js"></script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='10' r='12' fill='none' stroke='%2364ffda' stroke-width='3'/><line x1='50' y1='-2' x2='50' y2='22' stroke='%2364ffda' stroke-width='3.5' stroke-linecap='round'/><path d='M45,7 C42,22 40,36 41,55 C42,72 44,83 47,91 Q49,97 50,97 Q51,97 53,91 C56,83 58,72 59,55 C60,36 58,22 55,7Z' fill='%2364ffda'/><path d='M41,40 Q16,49 2,53 L4,62 Q18,58 43,50Z' fill='%2364ffda'/><path d='M59,40 Q84,49 98,53 L96,62 Q82,58 57,50Z' fill='%2364ffda'/><path d='M44,83 Q32,87 24,89 L25,93 Q35,91 46,88Z' fill='%2364ffda'/><path d='M56,83 Q68,87 76,89 L75,93 Q65,91 54,88Z' fill='%2364ffda'/></svg>">
   <style>
     :root {
@@ -780,70 +781,7 @@ async function sbInit() {
 // ─── Runway data (headings in degrees) ───────────────────────────────────────
 // Seeded with common airports; any missing airport is fetched from Supabase on demand.
 
-const RUNWAY_DATA = {
-  // Bay Area
-  KPAO:[130,310], KSFO:[10,100,190,280], KOAK:[100,280], KSJC:[120,300],
-  KSQL:[120,300], KNUQ:[140,320], KRHV:[130,310], KLVK:[91,271],
-  KCCR:[20,200], KHAF:[120,300], KAPC:[60,240,180,360], KSTS:[140,320,20,200],
-  KWVI:[20,200,80,260], KMRY:[100,280], KSCK:[110,290], KMOD:[124,304],
-  KFAT:[120,300], KSMF:[160,340], KSBA:[70,250], KSBP:[120,300],
-  // Pacific NW
-  KSEA:[160,340], KBFI:[130,310], KPAE:[160,340], KPDX:[100,280,30,210],
-  KGEG:[45,70,225,270], KEUG:[160,340], KMFR:[50,230,140,320],
-  // Southern CA
-  KLAX:[70,83,250,263], KVNY:[160,340], KBUR:[150,330], KLGB:[120,300],
-  KSNA:[200,20], KONT:[70,250], KPSP:[130,310], KSAN:[270,90], KSMO:[210,30],
-  // Nevada / Arizona
-  KLAS:[70,190,250,10], KRNO:[160,340,70,250], KTRK:[100,280], KPHX:[80,260], KTUS:[135,315,30,210],
-  KSDL:[210,30],
-  // Mountain
-  KDEN:[70,160,250,340], KCOS:[120,300], KSLC:[160,340], KBOI:[115,295],
-  KBZN:[120,300],
-  // Northeast
-  KJFK:[40,130,220,310], KLGA:[40,130,220,310], KEWR:[40,110,220,290],
-  KTEB:[190,10], KBOS:[40,90,150,220,270,330], KPHL:[90,270,350,170],
-  KBWI:[100,280,150,330], KDCA:[40,220,30,210], KIAD:[120,300,190,10],
-  KPIT:[100,280,140,320], KBUF:[140,320,230,50], KSYR:[100,280,150,330],
-  KALB:[190,10,100,280], KRIC:[160,340], KPVD:[160,340], KMHT:[170,350], KBDL:[60,240],
-  KBDR:[60,240,110,290], KHVN:[20,200], KGON:[50,230], KORH:[110,290], KEEN:[140,320],
-  // Southeast
-  KATL:[80,90,260,270], KMIA:[90,80,270,260], KFLL:[90,270], KPBI:[90,270],
-  KMCO:[180,360,170,350], KTPA:[190,100,10,280], KRSW:[60,240],
-  KJAX:[70,250,130,310], KPNS:[170,350], KCLT:[180,360], KRDU:[140,320],
-  KCHS:[150,330], KMSY:[110,290,180,360], KMEM:[180,360,270,90],
-  KBNA:[130,310,20,200], KTYS:[230,50],
-  // Midwest
-  KORD:[40,90,100,220,270,280], KMDW:[130,310], KMSP:[120,170,300,350],
-  KDTW:[29,89,209,269], KCVG:[90,180,270,360], KSTL:[120,110,300,290],
-  KMCI:[90,180,270,360], KGRR:[80,260], KMKE:[80,260,130,310], KIND:[50,230],
-  KCMH:[100,280], KCLE:[60,240], KDSM:[130,310],
-  // South Central
-  KDFW:[130,180,310,360], KDAL:[136,316], KADS:[150,330],
-  KIAH:[90,80,270,260,140,320], KHOU:[130,310], KSAT:[130,310,30,210],
-  KAUS:[180,360], KELP:[260,80], KABQ:[210,30,80,260],
-  KOKC:[180,360,130,310], KTUL:[180,360],
-  // Alaska / Hawaii
-  PANC:[70,150,250,330], PAFA:[200,20], PAJN:[80,260],
-  PHNL:[80,40,260,220], PHKO:[180,360], PHOG:[50,230],
-  // Canada
-  CYVR:[80,120,260,300], CYYC:[170,280,350,100], CYYZ:[60,150,240,330],
-  CYUL:[60,240], CYOW:[140,320], CYHZ:[150,60,330,240],
-  // Europe
-  EGLL:[90,270], EGKK:[80,260], EGCC:[50,230], EGPH:[60,240],
-  LFPG:[90,80,270,260], LFPO:[80,260], EDDF:[80,70,260,250],
-  EDDM:[80,260], EDDB:[80,260], EHAM:[90,180,270,360,40,220],
-  EBBR:[80,260,30,210], LSZH:[140,320,100,280], LIRF:[160,70,340,250],
-  LEMD:[180,140,360,320], LEBL:[70,200,250,20], ESSA:[80,260],
-  EKCH:[40,220], ENGM:[180,360], EFHK:[150,330], EPWA:[150,330],
-  LOWW:[110,160,290,340],
-  // Middle East / Asia
-  OMDB:[120,300,130,310], OMAA:[130,310], OTBD:[160,340], LLBG:[80,260],
-  RJTT:[160,340], RJAA:[160,340], RKSI:[150,330], VHHH:[70,250],
-  WSSS:[20,200], ZBAA:[173,180,353,360],
-  // Aus / NZ
-  YSSY:[160,70,340,250], YMML:[160,270,340,90], YBBN:[140,10,320,190],
-  NZAA:[72,252], FAOR:[30,10,210,190],
-};
+// RUNWAY_DATA is defined in atis-widget.js (shared with tripatis.html)
 
 // Tracks airports currently being fetched so we don't send duplicate requests.
 // Value: true = in flight, null = fetched but no data found in DB.
@@ -867,7 +805,7 @@ async function ensureRunwayData(icao) {
       if (r.he_heading != null) headings.push(Math.round(r.he_heading));
     }
     RUNWAY_DATA[icao] = headings.length ? headings : null;
-    if (headings.length) renderCards(); // re-render now that we have the data
+    if (headings.length) renderCards();
   } catch (_) {
     // silently ignore — diagram just won't appear
   }
@@ -2223,14 +2161,7 @@ function trimAtisTranscript(text) {
   return text;
 }
 
-const _NW = {ZERO:0,ONE:1,TWO:2,THREE:3,FOUR:4,FIVE:5,SIX:6,SEVEN:7,EIGHT:8,NINER:9,NINE:9,TEN:10,ELEVEN:11,TWELVE:12,THIRTEEN:13,FOURTEEN:14,FIFTEEN:15,SIXTEEN:16,SEVENTEEN:17,EIGHTEEN:18,NINETEEN:19,TWENTY:20,THIRTY:30,FORTY:40,FIFTY:50,SIXTY:60,SEVENTY:70,EIGHTY:80,NINETY:90};
-const _ND = 'ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE';
-const _NA = _ND + '|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY';
-const _NT = 'TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY';
-const _NTe = 'TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN';
-const _NO = 'ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE';
-const _nv = s => s.trim().split(/\s+/).reduce((n,w) => n + (_NW[w]||0), 0);
-const _nd = s => s.trim().split(/\s+/).map(w => String(_NW[w]!==undefined?_NW[w]:w)).join('');
+// Transcript number constants are defined in atis-widget.js
 function normalizeTranscript(text) {
   let t = text.toUpperCase();
   // decimal point
@@ -2442,90 +2373,22 @@ function subscribeToCacheUpdates(icao) {
 
 function phoneAtisStatusHtml(icao) {
   if (datisAirports.has(icao)) return ''; // D-ATIS airports use the digital feed only
+
   const job = atisJobs[icao];
-  if (!job) {
-    // Wait until checkStationType has run; undefined = still in flight
-    if (!Object.prototype.hasOwnProperty.call(stationTypes, icao)) return '';
-    const t = stationTypes[icao]; // null means not in atis_phones; still show button
-    const label = isWeatherOnly(t) ? 'RETRIEVE AWOS' : 'RETRIEVE CURRENT ATIS';
-    return `<div style="margin-bottom:10px">
-      <button onclick="fetchPhoneAtis('${icao}')"
-        style="font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid var(--accent);
-               background:transparent;color:var(--accent);cursor:pointer;letter-spacing:.5px">
-        ${label}
-      </button>
-    </div>`;
-  }
+  const sType = (job?.stationType ?? stationTypes[icao]) ?? null;
 
-  if (job.status === 'no_phone') return ''; // METAR already shown; no need to advertise missing phone
+  // Wait until checkStationType has resolved; show nothing while pending
+  if (!job && !Object.prototype.hasOwnProperty.call(stationTypes, icao)) return '';
 
-  const weatherOnly = isWeatherOnly(job.stationType || stationTypes[icao]);
-  const stationLabel = weatherOnly ? 'AWOS' : 'ATIS';
-  const STATUS_LABELS = {
-    checking:     { icon: '⏳', text: `CHECKING ${stationLabel}…`,    color: '#888888' },
-    calling:      { icon: '📞', text: `RETRIEVING ${stationLabel}…`,  color: '#ffb347' },
-    transcribing: { icon: '🎙️', text: 'TRANSCRIBING AUDIO…',          color: '#ffb347' },
-    complete:     { icon: '✅', text: `${stationLabel} CURRENT${job.parsed?.code ? ` [${job.parsed.code}]` : ''}`, color: (() => { const fc = cache[icao]?.data?.metar?.flightCat; return fc === 'IFR' || fc === 'LIFR' ? '#ff6b6b' : fc === 'MVFR' ? '#6496ff' : '#64ffda'; })() },
-    error:        { icon: '⚠️', text: `${stationLabel} FETCH FAILED`,  color: '#ff6b6b' },
-    no_phone:     { icon: '📵', text: 'NO PHONE ATIS ON FILE',         color: 'var(--text-dim)' },
-  };
+  if (job?.status === 'no_phone') return '';
 
-  const s = STATUS_LABELS[job.status];
-  if (!s) return '';
-
-  const isActive = job.status === 'calling' || job.status === 'transcribing';
-
-  let cdText = '';
-  if (isActive && job.startedAt) {
-    const elapsed = Math.floor((Date.now() - job.startedAt) / 1000);
-    cdText = ` · ${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')} elapsed`;
-  }
-
-  let html = `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.05);border:1px solid ${s.color}40">
-    <div style="font-size:12px;color:${s.color};letter-spacing:.5px">${s.icon} ${s.text}<span id="atis-cd-${icao}">${cdText}</span></div>`;
-
-  if (job.status === 'complete' && job.fetchedAt) {
-    const ft = new Date(job.fetchedAt);
-    const hhmm = fmtTime(ft, { hour: '2-digit', minute: '2-digit' });
-    const sType = job.stationType ?? stationTypes[icao] ?? null;
-    const refreshLine = weatherOnly ? '' : ` · ${nextRefreshText(sType, job.fetchedAt)}`;
-    html += `<div style="font-size:10px;color:var(--text-dim);margin-top:2px">Retrieved ${hhmm}${refreshLine}</div>`;
-  }
-
-  if (job.status === 'complete' && job.parsed) {
-    const p = job.parsed;
-
-    // Details dropdown — wind/vis/ceiling/altimeter/runway + transcript
-    html += `<details style="margin-top:6px"><summary style="font-size:11px;color:var(--accent);cursor:pointer;letter-spacing:.5px;user-select:none;list-style:none;display:block">▼ Details</summary>
-      <div style="margin-top:8px;font-size:13px;color:var(--text)">`;
-    if (weatherOnly) html += `<div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;letter-spacing:.5px">WEATHER DATA ONLY · NO RUNWAY OR TRAFFIC INFORMATION</div>`;
-    if (p.wind)       html += `<div><span class="data-label">WIND</span> ${p.wind.spd === 0 ? 'CALM' : `${p.wind.dir}° @ ${p.wind.spd}kt${p.wind.gust ? ` G${p.wind.gust}kt` : ''}`}</div>`;
-    if (p.visibility) html += `<div><span class="data-label">VIS</span> ${p.visibility} SM</div>`;
-    if (p.ceiling)    html += `<div><span class="data-label">CEILING</span> ${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}ft</div>`;
-    if (p.altimeter)  { const a = String(p.altimeter); const af = a.length === 4 ? a.slice(0,2)+'.'+a.slice(2) : a; html += `<div><span class="data-label">ALTIMETER</span> A${af}</div>`; }
-    if (p.runway)     html += `<div><span class="data-label">LANDING/DEPARTING</span> <span style="font-size:15px;font-weight:700;color:var(--text)">${p.runway}</span> <span style="color:#64ffda;font-size:13px">✓</span></div>`;
-    html += `</div>`;
-    if (job.audioUrl) {
-      html += `<div style="margin-top:8px">
-        <audio controls style="width:100%;height:28px;opacity:0.85">
-          <source src="${job.audioUrl}" type="audio/mpeg">
-        </audio>
-      </div>`;
-    }
-    if (job.transcription) {
-      const normalized = normalizeTranscript(job.transcription);
-      const displayTranscript = weatherOnly ? orientAwosTranscript(normalized) : normalized;
-      html += `<div style="font-size:11px;color:var(--text-dim);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);white-space:pre-wrap;line-height:1.6">${displayTranscript}</div>`;
-    }
-    html += `</details>`;
-  }
-
-  if (job.status === 'error' && job.error) {
-    html += `<div style="font-size:11px;color:var(--text-dim);margin-top:4px">${job.error}</div>`;
-  }
-
-  html += '</div>';
-  return html;
+  return atisWidgetHtml({
+    job:         job ?? null,
+    stationType: sType,
+    flightCat:   cache[icao]?.data?.metar?.flightCat ?? null,
+    onFetch:     `fetchPhoneAtis('${icao}')`,
+    timerId:     `atis-cd-${icao}`,
+  });
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -2619,5 +2482,9 @@ loadAvgWaitTime();
 // Auto-refresh every 10 minutes
 setInterval(refreshAll, 10 * 60 * 1000);
 </script>
+
+<footer style="text-align:center;padding:20px;border-top:1px solid #1e2d45;font-size:10px;color:#8892b0;letter-spacing:1px;margin-top:40px">
+  <a href="privacy.html" style="color:#8892b0;text-decoration:none" onmouseover="this.style.color='#00b4d8'" onmouseout="this.style.color='#8892b0'">Privacy Policy</a>
+</footer>
 </body>
 </html>

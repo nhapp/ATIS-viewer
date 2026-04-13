@@ -287,5 +287,9 @@ function fmtSec(s){ const m=Math.floor(s/60),sec=s%60; return m?`${m}m ${sec}s`:
 function fmtFull(iso){ return iso?new Date(iso).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—' }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 </script>
+
+<footer style="text-align:center;padding:20px;border-top:1px solid #1e2d45;font-size:10px;color:#8892b0;letter-spacing:1px;margin-top:40px">
+  <a href="privacy.html" style="color:#8892b0;text-decoration:none" onmouseover="this.style.color='#00b4d8'" onmouseout="this.style.color='#8892b0'">Privacy Policy</a>
+</footer>
 </body>
 </html>

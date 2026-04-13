@@ -5,46 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Trip ATIS Planner</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="atis-widget.js"></script>
   <style>
     :root {
-      --bg: #070c18;
-      --surface: #0d1525;
-      --surface-2: #131e30;
-      --border: #1e2d45;
-      --accent: #00b4d8;
-      --text: #ccd6f6;
-      --text-dim: #8892b0;
-      --green: #64ffda;
-      --amber: #ffb347;
-      --red: #ff6b6b;
+      --bg: #070c18; --surface: #0d1525; --surface-2: #131e30;
+      --border: #1e2d45; --accent: #00b4d8;
+      --text: #ccd6f6; --text-dim: #8892b0;
+      --green: #64ffda; --amber: #ffb347; --red: #ff6b6b;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'SF Mono','Fira Code','JetBrains Mono','Courier New',monospace;
-      min-height: 100vh;
-    }
+    body { background: var(--bg); color: var(--text); font-family: 'SF Mono','Fira Code','JetBrains Mono','Courier New',monospace; min-height: 100vh; }
 
-    /* ── Header ── */
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .header-back {
-      font-size: 12px;
-      color: var(--text-dim);
-      text-decoration: none;
-      letter-spacing: 1px;
-      border: 1px solid var(--border);
-      padding: 4px 10px;
-      border-radius: 4px;
-      transition: all 0.2s;
-    }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+    .header-back { font-size: 12px; color: var(--text-dim); text-decoration: none; letter-spacing: 1px; border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; transition: all 0.2s; }
     .header-back:hover { border-color: var(--accent); color: var(--accent); }
     .header-title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
     .header-build { margin-left: auto; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
@@ -52,201 +25,95 @@
     .main { padding: 20px; max-width: 1100px; margin: 0 auto; }
 
     /* ── Airport columns ── */
-    .airports-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
+    .airports-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     @media (max-width: 640px) { .airports-grid { grid-template-columns: 1fr; } }
 
-    .col-header {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      margin-bottom: 8px;
-    }
+    /* ── Unified airport card ── */
+    .col-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 0; }
+    .col-header { font-size: 10px; font-weight: 700; letter-spacing: 3px; margin-bottom: 10px; }
     .dep-col .col-header { color: var(--amber); }
     .arr-col .col-header { color: var(--green); }
 
     /* ── Search ── */
     .search-wrap { position: relative; margin-bottom: 10px; }
-    .search-input {
-      width: 100%;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 9px 12px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.2s;
-      letter-spacing: 1px;
-    }
+    .search-input { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 6px; font-family: inherit; font-size: 13px; outline: none; transition: border-color 0.2s; letter-spacing: 1px; }
     .search-input:focus { border-color: var(--accent); }
     .search-input::placeholder { color: var(--text-dim); letter-spacing: 0; }
-    .search-dropdown {
-      position: absolute;
-      top: calc(100% + 2px); left: 0; right: 0;
-      background: var(--surface);
-      border: 1px solid var(--accent);
-      border-radius: 8px;
-      z-index: 200;
-      max-height: 240px;
-      overflow-y: auto;
-      display: none;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    }
+    .search-dropdown { position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; z-index: 200; max-height: 240px; overflow-y: auto; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
     .search-dropdown.visible { display: block; }
-    .dd-item {
-      padding: 9px 12px;
-      cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: background 0.1s;
-    }
+    .dd-item { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; transition: background 0.1s; }
     .dd-item:last-child { border-bottom: none; }
-    .dd-item:hover, .dd-item.active { background: var(--surface-2); }
+    .dd-item:hover { background: var(--surface-2); }
     .dd-icao { font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 2px; min-width: 46px; }
     .dd-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
     .dd-name { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dd-city { font-size: 11px; color: var(--text-dim); }
 
-    /* ── Weather card ── */
-    .wx-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 18px;
-      min-height: 60px;
-      transition: min-height 0.3s;
-    }
-    .wx-card.empty {
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text-dim); font-size: 11px; letter-spacing: 1px;
-      min-height: 60px;
-    }
-    .wx-card.loading {
-      display: flex; align-items: center; justify-content: center;
-      min-height: 60px;
-    }
-    .wx-icao { font-size: 28px; font-weight: 900; letter-spacing: 4px; color: var(--text); }
-    .wx-name { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin: 3px 0 14px; }
-    .wx-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+    /* ── Weather content (inside col-card, no extra border) ── */
+    .wx-body { min-height: 50px; }
+    .wx-body.empty { display: flex; align-items: center; color: var(--text-dim); font-size: 11px; letter-spacing: 1px; min-height: 50px; }
+    .wx-body.loading { display: flex; align-items: center; min-height: 50px; }
+    .wx-icao { font-size: 26px; font-weight: 900; letter-spacing: 4px; color: var(--text); }
+    .wx-name { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin: 2px 0 10px; }
+    .wx-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
     .wx-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-dim); min-width: 68px; }
-    .wx-val { font-size: 13px; }
-    .wx-time { font-size: 10px; color: var(--text-dim); margin-top: 10px; letter-spacing: 0.5px; }
-
-    .flight-cat {
-      font-size: 11px; font-weight: 900; padding: 3px 8px;
-      border-radius: 4px; letter-spacing: 1px;
-    }
+    .wx-val { font-size: 12px; }
+    .wx-time { font-size: 10px; color: var(--text-dim); margin-top: 8px; letter-spacing: 0.5px; }
+    .flight-cat { font-size: 11px; font-weight: 900; padding: 2px 7px; border-radius: 4px; letter-spacing: 1px; }
     .flight-cat.VFR  { background: rgba(100,255,100,0.12); color: #64ff64; border: 1px solid rgba(100,255,100,0.3); }
     .flight-cat.MVFR { background: rgba(100,150,255,0.12); color: #6496ff; border: 1px solid rgba(100,150,255,0.3); }
     .flight-cat.IFR  { background: rgba(255,100,100,0.12); color: #ff6464; border: 1px solid rgba(255,100,100,0.3); }
     .flight-cat.LIFR { background: rgba(200,100,255,0.12); color: #c864ff; border: 1px solid rgba(200,100,255,0.3); }
 
-    /* ── Fade-in animation ── */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .fade-in { animation: fadeUp 0.35s ease forwards; }
+    /* ── Inline ATIS section ── */
+    .atis-inline { margin-top: 8px; }
+    .atis-inline-status { font-size: 11px; padding: 8px 10px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); letter-spacing: .5px; }
+    .atis-complete-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; font-size: 12px; }
+    .atis-complete-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-dim); min-width: 68px; }
 
-    /* ── Planning card ── */
-    .plan-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 0;
-    }
-    .plan-header {
-      font-size: 10px; font-weight: 700; letter-spacing: 3px;
-      color: var(--text-dim); margin-bottom: 18px;
-    }
+    /* ── Column divider ── */
+    .col-divider { height: 1px; background: var(--border); margin: 14px 0; }
 
-    /* ── ETA row ── */
-    .eta-row {
-      display: flex; align-items: center; gap: 14px;
-      flex-wrap: wrap; margin-bottom: 18px;
-    }
-    .eta-label { font-size: 10px; letter-spacing: 2px; color: var(--text-dim); }
+    /* ── Time section within col-card ── */
+    .time-section-label { font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; display: block; }
+    .day-radios { display: flex; gap: 12px; margin-bottom: 10px; }
     .day-radio { display: flex; align-items: center; gap: 5px; font-size: 11px; letter-spacing: 1px; cursor: pointer; }
     .day-radio input { accent-color: var(--accent); cursor: pointer; }
 
     /* ── Scroll-wheel time picker ── */
-    .time-picker {
-      display: flex; align-items: center; gap: 4px;
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: 8px; padding: 6px 10px; user-select: none;
-    }
-    .time-picker:focus-within { border-color: var(--accent); }
+    .time-picker { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
     .tp-col { display: flex; flex-direction: column; align-items: center; }
-    .tp-arrow {
-      background: none; border: none; color: var(--text-dim);
-      cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 6px;
-      transition: color 0.15s;
-    }
+    .tp-arrow { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; line-height: 1; padding: 1px 5px; transition: color 0.15s; }
     .tp-arrow:hover { color: var(--accent); }
-    .tp-val {
-      font-size: 22px; font-weight: 700; letter-spacing: 1px;
-      color: var(--text); min-width: 2ch; text-align: center;
-      background: none; border: none; outline: none; font-family: inherit;
-      -moz-appearance: textfield;
-    }
-    .tp-val::-webkit-inner-spin-button,
-    .tp-val::-webkit-outer-spin-button { -webkit-appearance: none; }
-    .tp-sep { font-size: 22px; font-weight: 700; color: var(--text-dim); padding: 0 2px; }
-    .tp-ampm {
-      font-size: 13px; font-weight: 700; letter-spacing: 1px;
-      color: var(--accent); cursor: pointer; padding: 4px 6px;
-      border: 1px solid var(--border); border-radius: 4px;
-      background: none; transition: all 0.15s; margin-left: 4px;
-    }
+    .tp-val { font-size: 20px; font-weight: 700; color: var(--text); min-width: 2ch; text-align: center; background: none; border: none; outline: none; font-family: inherit; -moz-appearance: textfield; }
+    .tp-val::-webkit-inner-spin-button, .tp-val::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .tp-sep { font-size: 20px; font-weight: 700; color: var(--text-dim); padding: 0 1px; }
+    .tp-ampm { font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--accent); cursor: pointer; padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; background: none; transition: all 0.15s; margin-left: 3px; }
     .tp-ampm:hover { background: rgba(0,180,216,0.1); }
 
-    /* ── Analysis banner ── */
-    .analysis-card {
-      border-radius: 8px; padding: 12px 16px;
-      margin-bottom: 16px; font-size: 12px; display: none;
-    }
+    /* ── Analysis banners ── */
+    .analysis-card { border-radius: 6px; padding: 8px 12px; margin-top: 10px; font-size: 12px; display: none; }
     .analysis-card.show { display: block; }
     .analysis-card.valid   { background: rgba(100,255,218,0.06); border: 1px solid rgba(100,255,218,0.25); }
     .analysis-card.warning { background: rgba(255,179,71,0.06);  border: 1px solid rgba(255,179,71,0.25); }
-    .analysis-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; }
-    .analysis-detail { font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+    .analysis-title { font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 3px; }
+    .analysis-detail { font-size: 10px; color: var(--text-dim); line-height: 1.5; }
+
+    /* ── Plan section (duration + SMS) ── */
+    .plan-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .duration-row { text-align: center; font-size: 11px; color: var(--text-dim); margin-bottom: 14px; letter-spacing: 1px; }
+    .duration-val { color: var(--accent); font-weight: 700; }
 
     /* ── Buttons ── */
-    .btn-outline {
-      background: transparent;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
+    .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 7px 14px; border-radius: 6px; font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: background 0.2s; }
     .btn-outline:hover { background: rgba(0,180,216,0.1); }
     .btn-outline:disabled { opacity: 0.35; cursor: default; }
+    .btn-sm { font-size: 10px; padding: 5px 10px; }
 
-    /* ── ATIS result ── */
-    .atis-result {
-      background: rgba(100,255,218,0.04);
-      border: 1px solid rgba(100,255,218,0.2);
-      border-radius: 8px;
-      padding: 14px 16px;
-      margin-bottom: 16px;
-      display: none;
-    }
-    .atis-result-title { font-size: 10px; font-weight: 700; color: var(--green); letter-spacing: 2px; margin-bottom: 10px; }
+    /* ── ATIS retrieve ── */
+    .retrieve-btn { width: 100%; padding: 8px; background: transparent; border: 1px dashed var(--border); color: var(--text-dim); border-radius: 6px; font-family: inherit; font-size: 11px; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; margin-top: 6px; }
+    .retrieve-btn:hover { border-color: var(--accent); color: var(--accent); border-style: solid; }
+    .retrieve-btn:disabled { opacity: 0.4; cursor: default; }
 
     /* ── Divider ── */
     .divider { height: 1px; background: var(--border); margin: 18px 0; }
@@ -254,40 +121,39 @@
     /* ── SMS section ── */
     .alert-header { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--amber); margin-bottom: 6px; }
     .alert-desc { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.6; }
-    .phone-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .phone-input {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 13px;
-      outline: none;
-      width: 200px;
-      transition: border-color 0.2s;
-    }
+    .phone-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .phone-input { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-family: inherit; font-size: 13px; outline: none; width: 200px; transition: border-color 0.2s; }
     .phone-input:focus { border-color: var(--amber); }
     .phone-input::placeholder { color: var(--text-dim); }
-    .btn-amber {
-      background: transparent;
-      border: 1px solid var(--amber);
-      color: var(--amber);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
+    .alert-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    @media (max-width: 540px) { .alert-grid { grid-template-columns: 1fr; } }
+    .alert-col-label { font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 6px; }
+    .btn-amber { background: transparent; border: 1px solid var(--amber); color: var(--amber); padding: 7px 12px; border-radius: 6px; font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: background 0.2s; width: 100%; margin-bottom: 6px; }
     .btn-amber:hover { background: rgba(255,179,71,0.1); }
     .btn-amber:disabled { opacity: 0.35; cursor: default; }
-    .alert-status { font-size: 11px; margin-top: 10px; letter-spacing: 0.5px; }
+    .alert-status { font-size: 11px; margin-top: 10px; letter-spacing: 0.5px; min-height: 16px; }
     .alert-status.ok   { color: var(--green); }
     .alert-status.info { color: var(--text-dim); }
     .alert-status.err  { color: var(--red); }
+
+    /* ── Fade-in ── */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeUp 0.35s ease forwards; }
+
+    /* ── Wind display (shared with atis-widget.js) ── */
+    .compass { width: 46px; height: 46px; flex-shrink: 0; }
+    .compass svg { width: 100%; height: 100%; }
+    .wind-display { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+    .wind-text { display: flex; flex-direction: column; gap: 3px; }
+    .wind-main { font-size: 20px; font-weight: 700; color: var(--green); letter-spacing: 1px; }
+    .wind-gust { font-size: 12px; color: var(--amber); letter-spacing: 1px; }
+    .data-label { font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
+    /* Runway tags */
+    .runway-tag { background: rgba(100,255,218,0.1); border: 1px solid rgba(100,255,218,0.35); color: var(--green); padding: 5px 12px; border-radius: 4px; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+    .runway-tag.dep { background: rgba(255,179,71,0.1); border-color: rgba(255,179,71,0.35); color: var(--amber); }
+    .runway-tag.combined { background: rgba(0,180,216,0.1); border-color: rgba(0,180,216,0.35); color: var(--accent); }
+    details > summary { list-style: none; display: block; }
+    details > summary::-webkit-details-marker { display: none; }
 
     /* ── Loading dots ── */
     .dot { animation: blink 1.2s infinite; display: inline-block; margin: 0 2px; }
@@ -306,76 +172,105 @@
 
 <div class="main">
 
-  <!-- ── Step 1 + 2: Airport cards ── -->
-  <div class="airports-grid" id="airports-grid">
+  <!-- ── Airport cards ── -->
+  <div class="airports-grid">
 
-    <!-- Departure -->
-    <div class="dep-col">
+    <!-- DEPARTURE -->
+    <div class="col-card dep-col">
       <div class="col-header">DEPARTURE AIRPORT</div>
       <div class="search-wrap">
         <input id="dep-input" class="search-input" placeholder="ICAO or airport name…" autocomplete="off">
         <div id="dep-dropdown" class="search-dropdown"></div>
       </div>
-      <div id="dep-card" class="wx-card empty">Enter departure airport above</div>
+      <div id="dep-card" class="wx-body empty">Enter departure airport above</div>
+      <div id="dep-atis" class="atis-inline" style="display:none"></div>
+
+      <div class="col-divider"></div>
+
+      <span class="time-section-label">DEPARTURE TIME</span>
+      <div class="day-radios">
+        <label class="day-radio"><input type="radio" name="dep-day" value="today" checked> TODAY</label>
+        <label class="day-radio"><input type="radio" name="dep-day" value="tomorrow"> TOMORROW</label>
+      </div>
+      <div class="time-picker">
+        <div class="tp-col">
+          <button class="tp-arrow" onclick="stepHour('dep',1)">▲</button>
+          <input class="tp-val" id="dep-tp-hour" type="number" min="1" max="12" value="10" oninput="clampHour('dep',this)" onchange="onTimeChange()">
+          <button class="tp-arrow" onclick="stepHour('dep',-1)">▼</button>
+        </div>
+        <span class="tp-sep">:</span>
+        <div class="tp-col">
+          <button class="tp-arrow" onclick="stepMin('dep',1)">▲</button>
+          <input class="tp-val" id="dep-tp-min" type="number" min="0" max="59" value="00" oninput="clampMin('dep',this)" onchange="onTimeChange()">
+          <button class="tp-arrow" onclick="stepMin('dep',-1)">▼</button>
+        </div>
+        <button class="tp-ampm" id="dep-tp-ampm" onclick="toggleAmPm('dep')">AM</button>
+      </div>
+      <div id="dep-analysis" class="analysis-card"></div>
     </div>
 
-    <!-- Arrival -->
-    <div class="arr-col" id="arr-col">
+    <!-- ARRIVAL -->
+    <div class="col-card arr-col">
       <div class="col-header">ARRIVAL AIRPORT</div>
       <div class="search-wrap">
         <input id="arr-input" class="search-input" placeholder="ICAO or airport name…" autocomplete="off">
         <div id="arr-dropdown" class="search-dropdown"></div>
       </div>
-      <div id="arr-card" class="wx-card empty">Enter arrival airport above</div>
+      <div id="arr-card" class="wx-body empty">Enter arrival airport above</div>
+      <div id="arr-atis" class="atis-inline" style="display:none"></div>
+
+      <div class="col-divider"></div>
+
+      <span class="time-section-label">ARRIVAL TIME</span>
+      <div class="day-radios">
+        <label class="day-radio"><input type="radio" name="arr-day" value="today" checked> TODAY</label>
+        <label class="day-radio"><input type="radio" name="arr-day" value="tomorrow"> TOMORROW</label>
+      </div>
+      <div class="time-picker">
+        <div class="tp-col">
+          <button class="tp-arrow" onclick="stepHour('arr',1)">▲</button>
+          <input class="tp-val" id="arr-tp-hour" type="number" min="1" max="12" value="12" oninput="clampHour('arr',this)" onchange="onTimeChange()">
+          <button class="tp-arrow" onclick="stepHour('arr',-1)">▼</button>
+        </div>
+        <span class="tp-sep">:</span>
+        <div class="tp-col">
+          <button class="tp-arrow" onclick="stepMin('arr',1)">▲</button>
+          <input class="tp-val" id="arr-tp-min" type="number" min="0" max="59" value="00" oninput="clampMin('arr',this)" onchange="onTimeChange()">
+          <button class="tp-arrow" onclick="stepMin('arr',-1)">▼</button>
+        </div>
+        <button class="tp-ampm" id="arr-tp-ampm" onclick="toggleAmPm('arr')">PM</button>
+      </div>
+      <div id="arr-analysis" class="analysis-card"></div>
     </div>
 
   </div>
 
-  <!-- ── Step 3+: Planning card — hidden until arrival selected ── -->
+  <!-- ── Plan section: duration + SMS (shown when both airports set) ── -->
   <div id="plan-section" style="display:none">
     <div class="plan-card fade-in">
-      <div class="plan-header">FLIGHT PLANNING</div>
 
-      <!-- ETA -->
-      <div class="eta-row">
-        <span class="eta-label">EST ARRIVAL TIME</span>
-        <label class="day-radio"><input type="radio" name="eta-day" value="today" checked> TODAY</label>
-        <label class="day-radio"><input type="radio" name="eta-day" value="tomorrow"> TOMORROW</label>
-        <div class="time-picker" id="time-picker">
-          <div class="tp-col">
-            <button class="tp-arrow" onclick="stepHour(1)">▲</button>
-            <input class="tp-val" id="tp-hour" type="number" min="1" max="12" value="12" oninput="clampHour(this)" onchange="onTimeChange()">
-            <button class="tp-arrow" onclick="stepHour(-1)">▼</button>
-          </div>
-          <span class="tp-sep">:</span>
-          <div class="tp-col">
-            <button class="tp-arrow" onclick="stepMin(1)">▲</button>
-            <input class="tp-val" id="tp-min" type="number" min="0" max="59" value="00" oninput="clampMin(this)" onchange="onTimeChange()">
-            <button class="tp-arrow" onclick="stepMin(-1)">▼</button>
-          </div>
-          <button class="tp-ampm" id="tp-ampm" onclick="toggleAmPm()">AM</button>
-        </div>
-      </div>
+      <div class="duration-row" id="duration-row"></div>
 
-      <!-- Analysis -->
-      <div id="atis-analysis" class="analysis-card"></div>
-
-      <!-- Retrieve button -->
-      <div style="margin-bottom:16px">
-        <button id="get-atis-btn" class="btn-outline">RETRIEVE ARRIVAL ATIS NOW</button>
-      </div>
-
-      <!-- ATIS result -->
-      <div id="atis-result" class="atis-result"></div>
-
-      <!-- SMS alert -->
       <div class="divider"></div>
-      <div class="alert-header">ATIS ARRIVAL ALERT</div>
-      <div class="alert-desc">Receive a text when the arrival ATIS updates near your ETA. Keep this page open to trigger the scheduled fetch.</div>
+
+      <div class="alert-header">ATIS ALERTS</div>
+      <div class="alert-desc">Receive a text when ATIS updates near your departure or arrival time.</div>
       <div class="phone-row">
-        <input type="tel" id="alert-phone" class="phone-input" placeholder="+1 (555) 123-4567">
-        <button id="set-alert-btn" class="btn-amber" disabled>SET ATIS ALERT</button>
-        <button id="test-sms-btn" class="btn-outline" disabled>SEND TEST TEXT</button>
+        <input type="tel" id="alert-phone" class="phone-input" placeholder="(555) 123-4567">
+        <span style="font-size:10px;color:var(--text-dim)">US numbers auto-formatted</span>
+      </div>
+
+      <div class="alert-grid">
+        <div>
+          <div class="alert-col-label">DEPARTURE</div>
+          <button id="set-dep-alert-btn" class="btn-amber" disabled>SET DEPARTURE ALERT</button>
+          <button id="test-dep-sms-btn" class="btn-outline btn-sm" style="width:100%" disabled>SEND TEST TEXT</button>
+        </div>
+        <div>
+          <div class="alert-col-label">ARRIVAL</div>
+          <button id="set-arr-alert-btn" class="btn-amber" disabled>SET ARRIVAL ALERT</button>
+          <button id="test-arr-sms-btn" class="btn-outline btn-sm" style="width:100%" disabled>SEND TEST TEXT</button>
+        </div>
       </div>
       <div id="alert-status" class="alert-status"></div>
     </div>
@@ -384,7 +279,7 @@
 </div>
 
 <script>
-const BUILD = '2026-04-13.1';
+const BUILD = '2026-04-13.5';
 document.getElementById('buildBadge').textContent = `build ${BUILD}`;
 
 const SB_URL   = 'https://zkilbgilzoxlxbyzyqgn.supabase.co';
@@ -394,11 +289,7 @@ const EDGE_URL = `${SB_URL}/functions/v1`;
 function sb(path, method = 'GET', body = null, prefer = '') {
   return fetch(`${SB_URL}/rest/v1/${path}`, {
     method,
-    headers: {
-      'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`,
-      'Content-Type': 'application/json',
-      ...(prefer ? { 'Prefer': prefer } : {}),
-    },
+    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', ...(prefer ? { 'Prefer': prefer } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   }).catch(() => null);
 }
@@ -412,30 +303,21 @@ function fmtTime(date, opts = {}) {
   return date.toLocaleTimeString([], opts).replace(/\s+(AM|PM)/i, '$1');
 }
 
+// Normalize phone to E.164 (+15551234567)
+function normalizePhone(raw) {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 10) return '+1' + digits;
+  if (digits.length === 11 && digits[0] === '1') return '+' + digits;
+  if (digits.length > 7) return '+' + digits;
+  return raw.trim();
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
-  dep: { icao: null, metar: null, info: null },
+  dep: { icao: null, metar: null, info: null, job: null, stationType: null },
   arr: { icao: null, metar: null, info: null, job: null, stationType: null },
 };
-let alertTimer = null;
-
-// ── Progressive reveal ────────────────────────────────────────────────────────
-function revealArrival() {
-  // Arrival column is always visible — nothing to reveal
-}
-
-function revealPlanning() {
-  const ps = document.getElementById('plan-section');
-  if (ps.style.display === 'none') {
-    ps.style.display = '';
-    // Re-trigger fade-in by removing and re-adding
-    const card = ps.querySelector('.plan-card');
-    card.classList.remove('fade-in');
-    void card.offsetWidth;
-    card.classList.add('fade-in');
-    runAnalysis();
-  }
-}
+const alertTimers = { dep: null, arr: null };
 
 // ── Airport search ────────────────────────────────────────────────────────────
 function setupSearch(inputId, ddId, role) {
@@ -447,14 +329,12 @@ function setupSearch(inputId, ddId, role) {
     const q = input.value.trim();
     if (q.length < 2) { dd.classList.remove('visible'); return; }
     const mySeq = ++seq;
-    const res = await sb(
-      `airports?or=(icao.ilike.${encodeURIComponent(q+'%')},name.ilike.${encodeURIComponent('%'+q+'%')},iata.ilike.${encodeURIComponent(q+'%')})&select=icao,name,city,state&order=icao.asc&limit=10`
-    );
+    const res = await sb(`airports?or=(icao.ilike.${encodeURIComponent(q+'%')},name.ilike.${encodeURIComponent('%'+q+'%')},iata.ilike.${encodeURIComponent(q+'%')})&select=icao,name,city,state&order=icao.asc&limit=10`);
     if (mySeq !== seq || !res?.ok) return;
     const rows = await res.json();
     if (!rows.length) { dd.classList.remove('visible'); return; }
-    dd.innerHTML = rows.map((r, i) => `
-      <div class="dd-item" data-icao="${r.icao}" data-idx="${i}">
+    dd.innerHTML = rows.map(r => `
+      <div class="dd-item" data-icao="${r.icao}">
         <span class="dd-icao">${r.icao}</span>
         <div class="dd-info">
           <div class="dd-name">${r.name || ''}</div>
@@ -467,10 +347,9 @@ function setupSearch(inputId, ddId, role) {
   dd.addEventListener('click', e => {
     const item = e.target.closest('.dd-item');
     if (!item) return;
-    const icao = item.dataset.icao;
-    input.value = icao;
+    input.value = item.dataset.icao;
     dd.classList.remove('visible');
-    selectAirport(role, icao, item.querySelector('.dd-name')?.textContent || '', item.querySelector('.dd-city')?.textContent || '');
+    selectAirport(role, item.dataset.icao, item.querySelector('.dd-name')?.textContent || '', item.querySelector('.dd-city')?.textContent || '');
   });
 
   document.addEventListener('click', e => {
@@ -489,29 +368,25 @@ function setupSearch(inputId, ddId, role) {
 async function selectAirport(role, icao, name, city) {
   icao = icao.toUpperCase();
   const s = state[role];
-  s.icao = icao;
-  s.metar = null;
+  s.icao = icao; s.metar = null; s.job = null; s.stationType = null;
   s.info = { name, city };
   renderWxCard(role, null, true);
-
-  if (role === 'dep') revealArrival();
+  document.getElementById(`${role}-atis`).style.display = 'none';
 
   try {
-    const raw = await fetchMetarRaw(icao);
+    const [raw, info] = await Promise.all([fetchMetarRaw(icao), fetchAirportInfo(icao)]);
     s.metar = parseRawMetar(raw);
-    const info = await fetchAirportInfo(icao);
     if (info) s.info = info;
     renderWxCard(role, s.metar, false);
   } catch (err) {
     renderWxCard(role, null, false, err.message);
   }
 
-  if (role === 'arr') {
-    revealPlanning();
-    checkStationType(icao);
-    checkAtisCache(icao);
-    updateAlertButton();
-  }
+  checkStationType(role, icao);
+  runAnalysis();
+
+  if (state.dep.icao && state.arr.icao) revealPlanning();
+  updateAlertButtons();
 }
 
 // ── METAR fetch + parse ───────────────────────────────────────────────────────
@@ -527,46 +402,32 @@ async function fetchAirportInfo(icao) {
   const res = await sb(`airports?icao=eq.${encodeURIComponent(icao)}&select=name,city,state`);
   if (!res?.ok) return null;
   const [row] = await res.json();
-  if (!row) return null;
-  return { name: row.name, city: [row.city, row.state].filter(Boolean).join(', ') };
-}
-
-function parseMetarTime(raw) {
-  const m = raw.match(/\b(\d{2})(\d{2})(\d{2})Z\b/);
-  if (!m) return null;
-  const [, , hh, mm] = m;
-  const now = new Date();
-  const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), parseInt(m[1]), parseInt(hh), parseInt(mm)));
-  if (utc > now + 12 * 3600000) utc.setUTCMonth(utc.getUTCMonth() - 1);
-  return {
-    zuluStr:  `${hh}${mm}Z`,
-    localStr: fmtTime(utc, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }),
-  };
+  return row ? { name: row.name, city: [row.city, row.state].filter(Boolean).join(', ') } : null;
 }
 
 function parseRawMetar(raw) {
   let wind = null;
-  if (/\b00000KT\b/.test(raw)) {
-    wind = { dir: null, spd: 0, gust: null };
-  } else {
+  if (/\b00000KT\b/.test(raw)) wind = { dir: null, spd: 0, gust: null };
+  else {
     const wm = raw.match(/\b(VRB|\d{3})(\d{2,3})(?:G(\d{2,3}))?KT\b/);
     if (wm) wind = { dir: wm[1] === 'VRB' ? 'VRB' : wm[1], spd: parseInt(wm[2]), gust: wm[3] ? parseInt(wm[3]) : null };
   }
-  let visibility = null;
   const visM = raw.match(/\b(\d+(?:\s+\d+\/\d+)?|\d+\/\d+)SM\b/);
-  if (visM) visibility = visM[1];
-  else if (/\b10\+SM\b/.test(raw)) visibility = '10+';
-
+  let visibility = visM ? visM[1] : (/\b10\+SM\b/.test(raw) ? '10+' : null);
   const clouds = [];
   const skyRe = /\b(SKC|CLR|FEW|SCT|BKN|OVC|VV)(\d{3})?(CB|TCU)?\b/g;
   let sm;
   while ((sm = skyRe.exec(raw)) !== null) clouds.push({ cover: sm[1], base: sm[2] ? parseInt(sm[2]) : null });
-
-  let altimeter = null;
   const altM = raw.match(/\bA(\d{4})\b/);
-  if (altM) altimeter = altM[1].slice(0,2) + '.' + altM[1].slice(2);
-
-  return { wind, visibility, clouds, altimeter, flightCat: calcFlightCat(clouds, visibility), obsTime: parseMetarTime(raw) };
+  const altimeter = altM ? altM[1].slice(0,2) + '.' + altM[1].slice(2) : null;
+  const obsM = raw.match(/\b(\d{2})(\d{2})(\d{2})Z\b/);
+  const obsTime = obsM ? (() => {
+    const now = new Date();
+    const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), parseInt(obsM[1]), parseInt(obsM[2]), parseInt(obsM[3])));
+    if (utc > now + 12*3600000) utc.setUTCMonth(utc.getUTCMonth()-1);
+    return { zuluStr: `${obsM[2]}${obsM[3]}Z`, localStr: fmtTime(utc, { hour:'2-digit', minute:'2-digit', timeZoneName:'short' }) };
+  })() : null;
+  return { wind, visibility, clouds, altimeter, obsTime, flightCat: calcFlightCat(clouds, visibility) };
 }
 
 function calcFlightCat(clouds, visibility) {
@@ -583,175 +444,118 @@ function calcFlightCat(clouds, visibility) {
 
 // ── Weather card renderer ─────────────────────────────────────────────────────
 function renderWxCard(role, metar, loading, errMsg) {
-  const el   = document.getElementById(`${role}-card`);
-  const s    = state[role];
-  const icao = s.icao;
+  const el = document.getElementById(`${role}-card`);
+  const s  = state[role];
+  if (loading) { el.className = 'wx-body loading'; el.innerHTML = `<span class="dot">●</span><span class="dot">●</span><span class="dot">●</span>`; return; }
+  if (errMsg)  { el.className = 'wx-body'; el.innerHTML = `<div class="wx-icao">${s.icao}</div><div style="font-size:11px;color:var(--red);margin-top:6px">⚠ ${errMsg}</div>`; return; }
+  if (!metar)  { el.className = 'wx-body empty'; el.innerHTML = 'Enter airport above'; return; }
 
-  if (loading) {
-    el.className = 'wx-card loading';
-    el.innerHTML = `<span class="dot">●</span><span class="dot">●</span><span class="dot">●</span>`;
-    return;
-  }
-  if (errMsg) {
-    el.className = 'wx-card';
-    el.innerHTML = `<div class="wx-icao">${icao}</div>
-      <div style="font-size:11px;color:var(--red);margin-top:6px">⚠ ${errMsg}</div>`;
-    return;
-  }
-  if (!metar) {
-    el.className = 'wx-card empty';
-    el.innerHTML = 'Enter airport above';
-    return;
-  }
-
-  const name = s.info?.name || '';
-  const city = s.info?.city || '';
   const wind = metar.wind;
-  const windStr = !wind ? 'N/A'
-    : wind.dir === null ? 'CALM'
-    : `${wind.dir === 'VRB' ? 'VRB' : wind.dir + '°'} @ ${wind.spd}KT${wind.gust ? ' G' + wind.gust : ''}`;
-
   let ceilStr = 'CLR';
   for (const c of metar.clouds)
-    if ((c.cover === 'BKN' || c.cover === 'OVC' || c.cover === 'VV') && c.base !== null) {
-      ceilStr = `${c.cover} ${c.base * 100}FT`; break;
-    }
+    if ((c.cover === 'BKN' || c.cover === 'OVC' || c.cover === 'VV') && c.base !== null) { ceilStr = `${c.cover} ${c.base * 100}FT`; break; }
 
-  el.className = 'wx-card fade-in';
+  // Runway diagram — use confirmed runway from ATIS if available
+  const confirmedRwy = s.job?.status === 'complete' ? (s.job?.parsed?.runway ?? null) : null;
+  const viz = runwayWindViz(s.icao, wind, confirmedRwy);
+
+  // Airport layout — highlight best runway heading
+  let activeH = null;
+  const rwyList = RUNWAY_DATA[s.icao];
+  if (rwyList && wind?.dir && wind.dir !== 'VRB') {
+    const wDir = parseInt(wind.dir), wSpd = wind.spd || 0;
+    let bestHW = -Infinity;
+    for (const rh of rwyList) {
+      const hw = wSpd * Math.cos(normalizeAngle(wDir - rh) * Math.PI / 180);
+      if (hw > bestHW) { bestHW = hw; activeH = rh; }
+    }
+  }
+  const layout = airportLayoutSvg(s.icao, activeH);
+
+  el.className = 'wx-body';
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-      <div>
-        <div class="wx-icao">${icao}</div>
-        <div class="wx-name">${name}${city ? ' · ' + city : ''}</div>
-      </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+      <div><div class="wx-icao">${s.icao}</div><div class="wx-name">${s.info?.name || ''}${s.info?.city ? ' · ' + s.info.city : ''}</div></div>
       ${metar.flightCat ? `<span class="flight-cat ${metar.flightCat}">${metar.flightCat}</span>` : ''}
     </div>
-    <div class="wx-row"><span class="wx-label">WIND</span><span class="wx-val">${windStr}</span></div>
-    <div class="wx-row"><span class="wx-label">VISIBILITY</span><span class="wx-val">${metar.visibility ? metar.visibility + ' SM' : 'N/A'}</span></div>
+    <div class="data-label">WIND</div>
+    ${windHtml(wind)}
+    <div class="wx-row" style="margin-top:6px"><span class="wx-label">VISIBILITY</span><span class="wx-val">${metar.visibility ? metar.visibility + ' SM' : 'N/A'}</span></div>
     <div class="wx-row"><span class="wx-label">CEILING</span><span class="wx-val">${ceilStr}</span></div>
     <div class="wx-row"><span class="wx-label">ALTIMETER</span><span class="wx-val">${metar.altimeter ? 'A' + metar.altimeter : 'N/A'}</span></div>
-    ${metar.obsTime ? `<div class="wx-time">${metar.obsTime.zuluStr} | ${metar.obsTime.localStr}</div>` : ''}`;
+    ${metar.obsTime ? `<div class="wx-time">${metar.obsTime.zuluStr} | ${metar.obsTime.localStr}</div>` : ''}
+    ${viz || layout ? `<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      ${viz}
+      ${layout ? `<div><div class="data-label">AIRPORT LAYOUT</div>${layout}</div>` : ''}
+    </div>` : ''}`;
 }
 
-// ── Arrival ATIS cache + station type ─────────────────────────────────────────
-async function checkStationType(icao) {
+// ── ATIS station type + cache ─────────────────────────────────────────────────
+async function checkStationType(role, icao) {
   const res = await sb(`atis_phones?icao=eq.${icao}&select=type`);
   if (!res?.ok) return;
   const [row] = await res.json();
-  state.arr.stationType = row?.type ?? null;
+  state[role].stationType = row?.type ?? null;
+  renderAtisSection(role);
+  checkAtisCache(role, icao);
 }
 
-async function checkAtisCache(icao) {
+async function checkAtisCache(role, icao) {
   const res = await sb(`atis_cache?icao=eq.${icao}&select=transcription,parsed,audio_url,fetched_at`);
   if (!res?.ok) return;
   const [cache] = await res.json();
-  if (!cache) return;
-  const validMs = (state.arr.stationType && state.arr.stationType !== 'atis') ? 3600000 : 2700000;
-  if (new Date() - new Date(cache.fetched_at) > validMs) return;
-  state.arr.job = { status: 'complete', parsed: cache.parsed, transcription: cache.transcription, audioUrl: cache.audio_url, fetchedAt: cache.fetched_at };
-  renderAtisResult();
+  if (!cache) { renderAtisSection(role); return; }
+  const validMs = state[role].stationType && state[role].stationType !== 'atis' ? 3600000 : 2700000;
+  if (new Date() - new Date(cache.fetched_at) > validMs) { renderAtisSection(role); return; }
+  state[role].job = { status: 'complete', parsed: cache.parsed, transcription: cache.transcription, audioUrl: cache.audio_url, fetchedAt: cache.fetched_at };
+  renderAtisSection(role);
 }
 
-// ── ATIS timing analysis ──────────────────────────────────────────────────────
-// ── Scroll-wheel time picker helpers ─────────────────────────────────────────
-function stepHour(dir) {
-  const el = document.getElementById('tp-hour');
-  let v = parseInt(el.value) + dir;
-  if (v > 12) v = 1;
-  if (v < 1)  v = 12;
-  el.value = v;
-  onTimeChange();
-}
-function stepMin(dir) {
-  const el = document.getElementById('tp-min');
-  let v = parseInt(el.value) + dir;
-  if (v > 59) v = 0;
-  if (v < 0)  v = 59;
-  el.value = String(v).padStart(2, '0');
-  onTimeChange();
-}
-function clampHour(el) { let v = parseInt(el.value)||1; if(v>12)v=12; if(v<1)v=1; el.value=v; onTimeChange(); }
-function clampMin(el)  { let v = parseInt(el.value)||0; if(v>59)v=59; if(v<0)v=0; el.value=String(v).padStart(2,'0'); onTimeChange(); }
-function toggleAmPm() {
-  const el = document.getElementById('tp-ampm');
-  el.textContent = el.textContent === 'AM' ? 'PM' : 'AM';
-  onTimeChange();
-}
-function onTimeChange() { runAnalysis(); updateAlertButton(); }
-
-function getEtaDate() {
-  const h   = parseInt(document.getElementById('tp-hour').value) || 12;
-  const m   = parseInt(document.getElementById('tp-min').value)  || 0;
-  const ampm = document.getElementById('tp-ampm').textContent;
-  let hh = h % 12 + (ampm === 'PM' ? 12 : 0);
-  const d = new Date();
-  if (document.querySelector('input[name="eta-day"]:checked').value === 'tomorrow') d.setDate(d.getDate() + 1);
-  d.setHours(hh, m, 0, 0);
-  return d;
+// ── ATIS inline section renderer (uses shared atis-widget.js) ─────────────────
+function renderAtisSection(role) {
+  const el = document.getElementById(`${role}-atis`);
+  const s  = state[role];
+  if (!s.icao) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = atisWidgetHtml({
+    job:         s.job,
+    stationType: s.stationType,
+    flightCat:   s.metar?.flightCat ?? null,
+    onFetch:     `fetchAtis('${role}')`,
+  });
 }
 
-function computeNotifyAfter(etaDate) {
-  // Fetch at :58 of the hour whose :53 METAR precedes arrival
-  const n = new Date(etaDate);
-  n.setMinutes(58, 0, 0);
-  if (etaDate.getMinutes() < 58) n.setHours(n.getHours() - 1);
-  const now = new Date();
-  if (n <= now) n.setTime(now.getTime() + 2 * 60000);
-  return n;
+// Periodic re-render while a job is active (keeps elapsed timer ticking)
+let _atisTickInterval = null;
+function startAtisTick() {
+  if (_atisTickInterval) return;
+  _atisTickInterval = setInterval(() => {
+    const anyActive = ['dep','arr'].some(r => {
+      const j = state[r].job;
+      return j && (j.status === 'calling' || j.status === 'transcribing');
+    });
+    if (!anyActive) { clearInterval(_atisTickInterval); _atisTickInterval = null; return; }
+    ['dep','arr'].forEach(r => {
+      const j = state[r].job;
+      if (j && (j.status === 'calling' || j.status === 'transcribing')) {
+        // Timeout after 3 min
+        const elapsed = (Date.now() - (j.startedAt || Date.now())) / 1000;
+        if (elapsed > 180) {
+          state[r].job = { ...j, status: 'error', error: 'No response after 3 min — try again.' };
+        }
+        renderAtisSection(r);
+      }
+    });
+  }, 1000);
 }
 
-function runAnalysis() {
-  const card = document.getElementById('atis-analysis');
-  const eta  = getEtaDate();
-  if (!eta) { card.className = 'analysis-card'; return; }
-
-  const now = new Date();
-  if (eta <= now) {
-    card.className = 'analysis-card warning show';
-    card.innerHTML = `<div class="analysis-title" style="color:var(--amber)">⚠️ ETA IS IN THE PAST</div>
-      <div class="analysis-detail">Update your estimated arrival time.</div>`;
-    return;
-  }
-
-  // Count METAR cycles (:53 marks) between now and ETA
-  const nextMetar = new Date(now);
-  nextMetar.setMinutes(53, 0, 0);
-  if (now.getMinutes() >= 53) nextMetar.setHours(nextMetar.getHours() + 1);
-
-  let updates = 0, check = new Date(nextMetar);
-  while (check <= eta) { updates++; check.setHours(check.getHours() + 1); }
-
-  const notify   = computeNotifyAfter(eta);
-  const etaLocal = fmtTime(eta,    { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
-  const ntfLocal = fmtTime(notify, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
-
-  if (updates === 0) {
-    card.className = 'analysis-card valid show';
-    card.innerHTML = `<div class="analysis-title" style="color:var(--green)">✅ CURRENT ATIS VALID AT ARRIVAL</div>
-      <div class="analysis-detail">ETA ${etaLocal} — No ATIS update expected. Current ATIS will be in effect.</div>`;
-  } else {
-    card.className = 'analysis-card warning show';
-    card.innerHTML = `<div class="analysis-title" style="color:var(--amber)">⚠️ NEW ATIS EXPECTED BEFORE ARRIVAL</div>
-      <div class="analysis-detail">
-        ETA ${etaLocal} — ATIS will update <strong>${updates > 1 ? updates + ' times' : 'once'}</strong> before arrival.<br>
-        New ATIS will be available around ${ntfLocal}.
-      </div>`;
-  }
-
-  updateAlertButton();
-}
-
-// ── Retrieve arrival ATIS ─────────────────────────────────────────────────────
-document.getElementById('get-atis-btn').addEventListener('click', fetchArrAtis);
-
-async function fetchArrAtis() {
-  const icao = state.arr.icao;
+// ── Fetch ATIS ────────────────────────────────────────────────────────────────
+async function fetchAtis(role) {
+  const icao = state[role].icao;
   if (!icao) return;
-  const btn = document.getElementById('get-atis-btn');
-  btn.disabled = true;
-  btn.textContent = 'RETRIEVING…';
-  state.arr.job = { status: 'calling' };
-  renderAtisResult();
+  state[role].job = { status: 'calling', startedAt: Date.now() };
+  renderAtisSection(role);
+  startAtisTick();
 
   try {
     const res = await fetch(`${EDGE_URL}/fetch-atis`, {
@@ -763,129 +567,197 @@ async function fetchArrAtis() {
     const data = await res.json();
 
     if (data.status === 'cached') {
-      state.arr.job = { status: 'complete', parsed: data.data.parsed, transcription: data.data.transcription, audioUrl: data.data.audio_url, fetchedAt: data.data.fetched_at };
-      renderAtisResult();
-      btn.disabled = false; btn.textContent = 'RETRIEVE ARRIVAL ATIS NOW';
+      state[role].job = { status: 'complete', parsed: data.data.parsed, transcription: data.data.transcription, audioUrl: data.data.audio_url, fetchedAt: data.data.fetched_at };
+      renderAtisSection(role);
       return;
     }
     if (data.job_id) {
-      state.arr.job = { status: 'transcribing' };
-      renderAtisResult();
-      subscribeToJob(icao, data.job_id);
+      state[role].job = { status: 'transcribing' };
+      renderAtisSection(role);
+      subscribeToJob(role, data.job_id);
       return;
     }
     throw new Error(data.error || 'Unexpected response');
   } catch (err) {
-    state.arr.job = { status: 'error', error: err.message };
-    renderAtisResult();
-    btn.disabled = false; btn.textContent = 'RETRIEVE ARRIVAL ATIS NOW';
+    state[role].job = { status: 'error', error: err.message };
+    renderAtisSection(role);
   }
 }
 
-function subscribeToJob(icao, jobId) {
-  const ch = sbRealtime().channel(`trip-${jobId}`)
+function subscribeToJob(role, jobId) {
+  const ch = sbRealtime().channel(`trip-${role}-${jobId}`)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'atis_jobs', filter: `id=eq.${jobId}` }, payload => {
       const row = payload.new;
-      state.arr.job = { status: row.status, parsed: row.parsed, transcription: row.transcription, audioUrl: row.audio_url, fetchedAt: row.completed_at, error: row.error_msg };
-      renderAtisResult();
-      if (row.status === 'complete' || row.status === 'error') {
-        ch.unsubscribe();
-        const btn = document.getElementById('get-atis-btn');
-        btn.disabled = false; btn.textContent = 'RETRIEVE ARRIVAL ATIS NOW';
-      }
+      state[role].job = { status: row.status, parsed: row.parsed, transcription: row.transcription, audioUrl: row.audio_url, fetchedAt: row.completed_at, error: row.error_msg };
+      renderAtisSection(role);
+      // Re-render wx card so confirmed runway appears in the diagram
+      if (row.status === 'complete' && state[role].metar) renderWxCard(role, state[role].metar, false);
+      if (row.status === 'complete' || row.status === 'error') ch.unsubscribe();
     }).subscribe();
 }
 
-function renderAtisResult() {
-  const el  = document.getElementById('atis-result');
-  const job = state.arr.job;
-  if (!job) { el.style.display = 'none'; return; }
-  el.style.display = '';
+// ── Reveal planning card ──────────────────────────────────────────────────────
+function revealPlanning() {
+  const ps = document.getElementById('plan-section');
+  if (ps.style.display === 'none') {
+    ps.style.display = '';
+    updateDuration();
+  }
+}
 
-  const LABELS = {
-    calling:      '📞 RETRIEVING ATIS…',
-    transcribing: '🎙️ TRANSCRIBING AUDIO…',
-    error:        '⚠️ FETCH FAILED',
-  };
+// ── Time picker helpers ───────────────────────────────────────────────────────
+function stepHour(role, dir) {
+  const el = document.getElementById(`${role}-tp-hour`);
+  let v = parseInt(el.value) + dir;
+  if (v > 12) v = 1; if (v < 1) v = 12;
+  el.value = v; onTimeChange();
+}
+function stepMin(role, dir) {
+  const el = document.getElementById(`${role}-tp-min`);
+  let v = parseInt(el.value) + dir;
+  if (v > 59) v = 0; if (v < 0) v = 59;
+  el.value = String(v).padStart(2,'0'); onTimeChange();
+}
+function clampHour(role, el) { let v = parseInt(el.value)||1; if(v>12)v=12; if(v<1)v=1; el.value=v; onTimeChange(); }
+function clampMin(role, el)  { let v = parseInt(el.value)||0; if(v>59)v=59; if(v<0)v=0; el.value=String(v).padStart(2,'0'); onTimeChange(); }
+function toggleAmPm(role) {
+  const el = document.getElementById(`${role}-tp-ampm`);
+  el.textContent = el.textContent === 'AM' ? 'PM' : 'AM';
+  onTimeChange();
+}
+function onTimeChange() { runAnalysis(); updateAlertButtons(); updateDuration(); }
 
-  if (job.status !== 'complete') {
-    el.innerHTML = `<div class="atis-result-title">${LABELS[job.status] || job.status.toUpperCase()}</div>
-      ${job.error ? `<div style="font-size:11px;color:var(--red)">${job.error}</div>` : ''}`;
+function getTimeDate(role) {
+  const h    = parseInt(document.getElementById(`${role}-tp-hour`).value) || 12;
+  const m    = parseInt(document.getElementById(`${role}-tp-min`).value)  || 0;
+  const ampm = document.getElementById(`${role}-tp-ampm`).textContent;
+  const hh   = h % 12 + (ampm === 'PM' ? 12 : 0);
+  const d = new Date();
+  if (document.querySelector(`input[name="${role}-day"]:checked`).value === 'tomorrow') d.setDate(d.getDate() + 1);
+  d.setHours(hh, m, 0, 0);
+  return d;
+}
+
+function updateDuration() {
+  const el = document.getElementById('duration-row');
+  if (!el) return;
+  try {
+    const dep = getTimeDate('dep');
+    const arr = getTimeDate('arr');
+    let diff = arr - dep;
+    if (diff <= 0) { el.textContent = ''; return; }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    el.innerHTML = `ESTIMATED FLIGHT TIME <span class="duration-val">${h > 0 ? h + 'h ' : ''}${m}m</span>`;
+  } catch(_) { el.textContent = ''; }
+}
+
+function computeNotifyAfter(timeDate) {
+  const n = new Date(timeDate);
+  n.setMinutes(58, 0, 0);
+  if (timeDate.getMinutes() < 58) n.setHours(n.getHours() - 1);
+  const now = new Date();
+  if (n <= now) n.setTime(now.getTime() + 2 * 60000);
+  return n;
+}
+
+function runAnalysis() {
+  analyzeTime('dep', 'dep-analysis', 'DEPARTURE');
+  analyzeTime('arr', 'arr-analysis', 'ARRIVAL');
+}
+
+function analyzeTime(role, cardId, label) {
+  const card = document.getElementById(cardId);
+  if (!state[role].icao) { card.className = 'analysis-card'; return; }
+  let t;
+  try { t = getTimeDate(role); } catch(_) { card.className = 'analysis-card'; return; }
+  const now = new Date();
+  if (t <= now) {
+    card.className = 'analysis-card warning show';
+    card.innerHTML = `<div class="analysis-title" style="color:var(--amber)">⚠ ${label} TIME IS IN THE PAST</div>`;
     return;
   }
-
-  const p = job.parsed || {};
-  const windStr = !p.wind ? '' : p.wind.spd === 0 ? 'CALM'
-    : `${p.wind.dir}° @ ${p.wind.spd}KT${p.wind.gust ? ' G' + p.wind.gust + 'KT' : ''}`;
-  const altStr = p.altimeter ? (() => { const a = String(p.altimeter); return a.length === 4 ? a.slice(0,2)+'.'+a.slice(2) : a; })() : null;
-
-  el.innerHTML = `
-    <div class="atis-result-title">✅ ATIS CURRENT${p.code ? ' · INFORMATION ' + p.code : ''}</div>
-    ${job.fetchedAt ? `<div style="font-size:10px;color:var(--text-dim);margin-bottom:10px">Retrieved ${fmtTime(new Date(job.fetchedAt), { hour:'2-digit', minute:'2-digit' })}</div>` : ''}
-    ${p.wind       ? `<div class="wx-row"><span class="wx-label">WIND</span><span class="wx-val">${windStr}</span></div>` : ''}
-    ${p.visibility ? `<div class="wx-row"><span class="wx-label">VISIBILITY</span><span class="wx-val">${p.visibility} SM</span></div>` : ''}
-    ${p.ceiling    ? `<div class="wx-row"><span class="wx-label">CEILING</span><span class="wx-val">${p.ceiling.cover} ${p.ceiling.height.toLocaleString()}FT</span></div>` : ''}
-    ${altStr       ? `<div class="wx-row"><span class="wx-label">ALTIMETER</span><span class="wx-val">A${altStr}</span></div>` : ''}
-    ${p.runway     ? `<div class="wx-row"><span class="wx-label">LANDING/DEP</span><span class="wx-val" style="font-size:16px;font-weight:900;color:var(--green)">${p.runway} ✓</span></div>` : ''}
-    ${job.audioUrl ? `<div style="margin-top:10px"><audio controls style="width:100%;height:28px;opacity:0.85"><source src="${job.audioUrl}" type="audio/mpeg"></audio></div>` : ''}`;
+  const nextMetar = new Date(now);
+  nextMetar.setMinutes(53, 0, 0);
+  if (now.getMinutes() >= 53) nextMetar.setHours(nextMetar.getHours() + 1);
+  let updates = 0, check = new Date(nextMetar);
+  while (check <= t) { updates++; check.setHours(check.getHours() + 1); }
+  const tLocal   = fmtTime(t, { hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
+  const ntfLocal = fmtTime(computeNotifyAfter(t), { hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
+  if (updates === 0) {
+    card.className = 'analysis-card valid show';
+    card.innerHTML = `<div class="analysis-title" style="color:var(--green)">✅ CURRENT ATIS WILL BE IN EFFECT</div>
+      <div class="analysis-detail">${label[0]+label.slice(1).toLowerCase()} at ${tLocal} — no new ATIS expected.</div>`;
+  } else {
+    card.className = 'analysis-card warning show';
+    card.innerHTML = `<div class="analysis-title" style="color:var(--amber)">⚠ NEW ATIS EXPECTED BEFORE ${label}</div>
+      <div class="analysis-detail">${label[0]+label.slice(1).toLowerCase()} at ${tLocal} — ATIS updates <strong>${updates > 1 ? updates + ' times' : 'once'}</strong>. New ATIS ~${ntfLocal}.</div>`;
+  }
 }
 
-// ── SMS alert ─────────────────────────────────────────────────────────────────
-function updateAlertButton() {
-  const eta   = getEtaDate();
+// ── Alert buttons ─────────────────────────────────────────────────────────────
+function updateAlertButtons() {
   const phone = document.getElementById('alert-phone').value.trim();
-  document.getElementById('set-alert-btn').disabled = !(state.arr.icao && eta && eta > new Date());
-  document.getElementById('test-sms-btn').disabled  = !(state.arr.icao && phone);
+  const now   = new Date();
+  (['dep','arr']).forEach(role => {
+    let t;
+    try { t = getTimeDate(role); } catch(_) { t = null; }
+    const icao = state[role].icao;
+    const setBtn  = document.getElementById(`set-${role}-alert-btn`);
+    const testBtn = document.getElementById(`test-${role}-sms-btn`);
+    if (setBtn)  setBtn.disabled  = !(icao && t && t > now);
+    if (testBtn) testBtn.disabled = !(icao && phone);
+  });
 }
 
-document.getElementById('alert-phone').addEventListener('input', updateAlertButton);
-document.getElementById('set-alert-btn').addEventListener('click', setAtisAlert);
-document.getElementById('test-sms-btn').addEventListener('click', sendTestSms);
+document.getElementById('alert-phone').addEventListener('input', updateAlertButtons);
+document.getElementById('set-dep-alert-btn').addEventListener('click', () => setAtisAlert('dep'));
+document.getElementById('set-arr-alert-btn').addEventListener('click', () => setAtisAlert('arr'));
+document.getElementById('test-dep-sms-btn').addEventListener('click', () => sendTestSms('dep'));
+document.getElementById('test-arr-sms-btn').addEventListener('click', () => sendTestSms('arr'));
 
-async function setAtisAlert() {
-  const icao  = state.arr.icao;
-  const phone = document.getElementById('alert-phone').value.trim();
-  const eta   = getEtaDate();
+async function setAtisAlert(role) {
+  const icao  = state[role].icao;
+  const phone = normalizePhone(document.getElementById('alert-phone').value);
+  const t     = getTimeDate(role);
   const statusEl = document.getElementById('alert-status');
-  if (!icao || !phone || !eta) return;
+  if (!icao || !phone || !t) return;
 
-  const notify_after = computeNotifyAfter(eta);
-  const btn = document.getElementById('set-alert-btn');
-  btn.disabled = true;
+  const notify_after = computeNotifyAfter(t);
+  document.getElementById(`set-${role}-alert-btn`).disabled = true;
 
-  const res = await sb('atis_alert_subscriptions', 'POST',
-    { icao, phone, notify_after: notify_after.toISOString() }, 'return=minimal');
+  const res = await sb('atis_alert_subscriptions', 'POST', { icao, phone, notify_after: notify_after.toISOString() }, 'return=minimal');
+  const ntfLocal = fmtTime(notify_after, { hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
 
   if (!res?.ok) {
     statusEl.className = 'alert-status err';
     statusEl.textContent = '⚠ Could not save alert. Check your connection.';
-    btn.disabled = false;
+    document.getElementById(`set-${role}-alert-btn`).disabled = false;
     return;
   }
 
-  const ntfLocal = fmtTime(notify_after, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   statusEl.className = 'alert-status ok';
-  statusEl.textContent = `✅ ALERT SET — ATIS fetch scheduled for ${ntfLocal}. Keep this page open.`;
+  statusEl.textContent = `✅ ${role.toUpperCase()} ALERT SET — ATIS fetch scheduled for ${ntfLocal}.`;
 
-  clearTimeout(alertTimer);
-  alertTimer = setTimeout(() => {
+  clearTimeout(alertTimers[role]);
+  alertTimers[role] = setTimeout(() => {
     statusEl.className = 'alert-status info';
     statusEl.textContent = `📞 RETRIEVING ATIS FOR ${icao}…`;
-    fetchArrAtis();
+    fetchAtis(role);
   }, Math.max(notify_after.getTime() - Date.now(), 0));
 }
 
-async function sendTestSms() {
-  const icao  = state.arr.icao;
-  const phone = document.getElementById('alert-phone').value.trim();
+async function sendTestSms(role) {
+  const icao  = state[role].icao;
+  const rawPhone = document.getElementById('alert-phone').value.trim();
+  const phone = normalizePhone(rawPhone);
   const statusEl = document.getElementById('alert-status');
-  if (!icao || !phone) return;
+  if (!icao || !rawPhone) return;
 
-  const btn = document.getElementById('test-sms-btn');
-  btn.disabled = true;
-  btn.textContent = 'SENDING…';
+  const btn = document.getElementById(`test-${role}-sms-btn`);
+  btn.disabled = true; btn.textContent = 'SENDING…';
   statusEl.className = 'alert-status info';
-  statusEl.textContent = '';
+  statusEl.textContent = `Sending to ${phone}…`;
 
   try {
     const res = await fetch(`${EDGE_URL}/sms-test`, {
@@ -896,31 +768,65 @@ async function sendTestSms() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     statusEl.className = 'alert-status ok';
-    statusEl.textContent = `✅ TEST TEXT SENT TO ${phone}`;
+    const sidHint = data.sid ? ` · SID ${data.sid.slice(-8)}` : '';
+    const fromHint = data.from ? ` · from ${data.from}` : '';
+    statusEl.textContent = `✅ SENT TO ${data.to || phone}${fromHint}${sidHint}`;
   } catch (err) {
     statusEl.className = 'alert-status err';
     statusEl.textContent = `⚠ ${err.message}`;
   } finally {
     btn.disabled = false;
     btn.textContent = 'SEND TEST TEXT';
+    updateAlertButtons();
   }
 }
 
-// ── ETA wire-up ───────────────────────────────────────────────────────────────
-document.querySelectorAll('input[name="eta-day"]').forEach(r => r.addEventListener('change', onTimeChange));
+// ── Wire-up ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('input[name="dep-day"], input[name="arr-day"]').forEach(r => r.addEventListener('change', onTimeChange));
 
-// Default ETA: now + 2 hours
-const dflt = new Date(Date.now() + 2 * 3600000);
-const dfltH = dflt.getHours();
-const dfltAmPm = dfltH >= 12 ? 'PM' : 'AM';
-const dfltH12  = dfltH % 12 || 12;
-document.getElementById('tp-hour').value  = dfltH12;
-document.getElementById('tp-min').value   = String(dflt.getMinutes()).padStart(2, '0');
-document.getElementById('tp-ampm').textContent = dfltAmPm;
+// Default: dep = now+1h, arr = now+3h
+const now = new Date();
+function initPicker(role, date) {
+  const h = date.getHours(), m = date.getMinutes();
+  document.getElementById(`${role}-tp-hour`).value  = h % 12 || 12;
+  document.getElementById(`${role}-tp-min`).value   = String(m).padStart(2,'0');
+  document.getElementById(`${role}-tp-ampm`).textContent = h >= 12 ? 'PM' : 'AM';
+}
+initPicker('dep', new Date(now.getTime() + 1*3600000));
+initPicker('arr', new Date(now.getTime() + 3*3600000));
 
-// ── Init search ───────────────────────────────────────────────────────────────
 setupSearch('dep-input', 'dep-dropdown', 'dep');
 setupSearch('arr-input', 'arr-dropdown', 'arr');
+
+// ── Runway data fetch (re-renders wx cards when data arrives) ──────────────────
+const _runwayFetching = {};
+async function ensureRunwayData(icao) {
+  if (RUNWAY_DATA[icao] !== undefined) return;
+  if (_runwayFetching[icao]) return;
+  _runwayFetching[icao] = true;
+  try {
+    const res = await sb(`runways?airport_ident=eq.${encodeURIComponent(icao)}&select=le_heading,he_heading`);
+    if (!res?.ok) return;
+    const rows = await res.json();
+    const headings = [];
+    for (const r of rows) {
+      if (r.le_heading != null) headings.push(Math.round(r.le_heading));
+      if (r.he_heading != null) headings.push(Math.round(r.he_heading));
+    }
+    RUNWAY_DATA[icao] = headings.length ? headings : null;
+    if (headings.length) {
+      ['dep','arr'].forEach(role => {
+        if (state[role].icao === icao && state[role].metar)
+          renderWxCard(role, state[role].metar, false);
+      });
+    }
+  } catch (_) {}
+}
+function _onMissingRunwayData(icao) { ensureRunwayData(icao); }
 </script>
+
+<footer style="text-align:center;padding:20px;border-top:1px solid #1e2d45;font-size:10px;color:#8892b0;letter-spacing:1px;margin-top:40px">
+  <a href="privacy.html" style="color:#8892b0;text-decoration:none" onmouseover="this.style.color='#00b4d8'" onmouseout="this.style.color='#8892b0'">Privacy Policy</a>
+</footer>
 </body>
 </html>

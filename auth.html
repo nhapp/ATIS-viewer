@@ -81,6 +81,12 @@
     .msg { font-size:11px; margin-top:14px; padding:10px 12px; border-radius:6px; display:none; }
     .msg.ok  { background:rgba(100,255,218,0.08); border:1px solid rgba(100,255,218,0.3); color:var(--green); display:block; }
     .msg.err { background:rgba(255,107,107,0.08); border:1px solid rgba(255,107,107,0.3); color:var(--red);   display:block; }
+
+    .terms-row { display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
+    .terms-row input[type=checkbox] { margin-top:2px; accent-color:var(--accent); width:14px; height:14px; flex-shrink:0; cursor:pointer; }
+    .terms-row label { font-size:11px; font-weight:400; letter-spacing:0; color:var(--text-dim); line-height:1.5; cursor:pointer; }
+    .terms-row a { color:var(--accent); text-decoration:none; }
+    .terms-row a:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -134,7 +140,11 @@
         <label>MOBILE PHONE <span style="font-weight:400;letter-spacing:0">(for SMS alerts)</span></label>
         <input type="tel" id="su-phone" placeholder="+1 (555) 123-4567" autocomplete="tel">
       </div>
-      <button class="btn-primary" id="su-btn" onclick="signUp()">CREATE ACCOUNT</button>
+      <div class="terms-row">
+        <input type="checkbox" id="su-terms" onchange="document.getElementById('su-btn').disabled = !this.checked">
+        <label for="su-terms">I have read and accept the <a href="privacy.html" target="_blank">Privacy Policy</a> and terms of service.</label>
+      </div>
+      <button class="btn-primary" id="su-btn" onclick="signUp()" disabled>CREATE ACCOUNT</button>
       <div class="msg" id="su-msg"></div>
     </div>
 
@@ -202,6 +212,7 @@ async function signUp() {
   const pass   = document.getElementById('su-pass').value;
   const pass2  = document.getElementById('su-pass2').value;
   const phone  = document.getElementById('su-phone').value.trim();
+  if (!document.getElementById('su-terms').checked) return setMsg('su-msg', 'You must accept the terms to create an account.', 'err');
   if (!email || !pass) return setMsg('su-msg', 'Please fill in all fields.', 'err');
   if (pass !== pass2)  return setMsg('su-msg', 'Passwords do not match.', 'err');
   if (pass.length < 8) return setMsg('su-msg', 'Password must be at least 8 characters.', 'err');
@@ -244,5 +255,9 @@ document.addEventListener('keydown', e => {
   if (active === 'view-forgot') forgotPassword();
 });
 </script>
+
+<footer style="text-align:center;padding:20px;border-top:1px solid #1e2d45;font-size:10px;color:#8892b0;letter-spacing:1px;margin-top:40px">
+  <a href="privacy.html" style="color:#8892b0;text-decoration:none" onmouseover="this.style.color='#00b4d8'" onmouseout="this.style.color='#8892b0'">Privacy Policy</a>
+</footer>
 </body>
 </html>
