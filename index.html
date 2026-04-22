@@ -1519,11 +1519,20 @@ async function fetchDatis(icao) {
 }
 
 async function fetchMetar(icao) {
-  const res = await fetch(`https://metar.vatsim.net/metar.php?id=${icao}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const text = (await res.text()).trim();
-  if (!text || !text.toUpperCase().startsWith(icao.toUpperCase())) throw new Error('No METAR');
-  return parseRawMetar(text);
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+    try {
+      const res = await fetch(`https://metar.vatsim.net/metar.php?id=${icao}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = (await res.text()).trim();
+      if (!text || !text.toUpperCase().startsWith(icao.toUpperCase())) throw new Error('No METAR');
+      return parseRawMetar(text);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }
 
 function parseMetarTime(raw) {
@@ -2080,7 +2089,7 @@ function startCountdownTick() {
       // Timeout: give up after 3 minutes
       if (elapsed > ATIS_TIMEOUT_MS / 1000) {
         atisJobs[icao] = { ...job, status: 'error', error: 'No response after 3 min — Twilio or transcription may have failed. Try again.' };
-        renderAirport(icao);
+        renderCards();
         continue;
       }
 

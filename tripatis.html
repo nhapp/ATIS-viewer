@@ -65,11 +65,6 @@
     .flight-cat.IFR  { background: rgba(255,100,100,0.12); color: #ff6464; border: 1px solid rgba(255,100,100,0.3); }
     .flight-cat.LIFR { background: rgba(200,100,255,0.12); color: #c864ff; border: 1px solid rgba(200,100,255,0.3); }
 
-    /* ── Inline ATIS section ── */
-    .atis-inline { margin-top: 8px; }
-    .atis-inline-status { font-size: 11px; padding: 8px 10px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); letter-spacing: .5px; }
-    .atis-complete-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; font-size: 12px; }
-    .atis-complete-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-dim); min-width: 68px; }
 
     /* ── Column divider ── */
     .col-divider { height: 1px; background: var(--border); margin: 14px 0; }
@@ -160,6 +155,20 @@
     .dot:nth-child(2) { animation-delay: 0.2s; }
     .dot:nth-child(3) { animation-delay: 0.4s; }
     @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+    /* ── Info grid (matches index.html card layout) ── */
+    .info-table { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+    .info-row { display: flex; border-bottom: 1px solid var(--border); }
+    .info-row:last-child { border-bottom: none; }
+    .info-cell { flex: 1; padding: 10px 12px; border-right: 1px solid var(--border); min-width: 0; }
+    .info-cell:last-child { border-right: none; }
+    .info-cell.full { flex: none; width: 100%; border-right: none; }
+    .metar-val { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: 1px; }
+    .altimeter-value { font-size: 24px; font-weight: 700; color: var(--green); letter-spacing: 2px; }
+    .sky-layers { display: flex; flex-direction: column; gap: 4px; }
+    .sky-layer { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: 0.5px; }
+    .raw-text-block { margin-top: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: var(--text-dim); line-height: 1.7; word-break: break-word; white-space: pre-wrap; }
+    .raw-text-label { font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -183,7 +192,6 @@
         <div id="dep-dropdown" class="search-dropdown"></div>
       </div>
       <div id="dep-card" class="wx-body empty">Enter departure airport above</div>
-      <div id="dep-atis" class="atis-inline" style="display:none"></div>
 
       <div class="col-divider"></div>
 
@@ -217,7 +225,6 @@
         <div id="arr-dropdown" class="search-dropdown"></div>
       </div>
       <div id="arr-card" class="wx-body empty">Enter arrival airport above</div>
-      <div id="arr-atis" class="atis-inline" style="display:none"></div>
 
       <div class="col-divider"></div>
 
@@ -371,7 +378,6 @@ async function selectAirport(role, icao, name, city) {
   s.icao = icao; s.metar = null; s.job = null; s.stationType = null;
   s.info = { name, city };
   renderWxCard(role, null, true);
-  document.getElementById(`${role}-atis`).style.display = 'none';
 
   try {
     const [raw, info] = await Promise.all([fetchMetarRaw(icao), fetchAirportInfo(icao)]);
@@ -391,11 +397,20 @@ async function selectAirport(role, icao, name, city) {
 
 // ── METAR fetch + parse ───────────────────────────────────────────────────────
 async function fetchMetarRaw(icao) {
-  const res = await fetch(`https://metar.vatsim.net/metar.php?id=${icao}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const text = (await res.text()).trim();
-  if (!text || !text.toUpperCase().startsWith(icao.toUpperCase())) throw new Error('No METAR');
-  return text;
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+    try {
+      const res = await fetch(`https://metar.vatsim.net/metar.php?id=${icao}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = (await res.text()).trim();
+      if (!text || !text.toUpperCase().startsWith(icao.toUpperCase())) throw new Error('No METAR');
+      return text;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }
 
 async function fetchAirportInfo(icao) {
@@ -403,6 +418,13 @@ async function fetchAirportInfo(icao) {
   if (!res?.ok) return null;
   const [row] = await res.json();
   return row ? { name: row.name, city: [row.city, row.state].filter(Boolean).join(', ') } : null;
+}
+
+const SKY_LABELS = { SKC:'Sky Clear', CLR:'Clear', FEW:'Few', SCT:'Scattered', BKN:'Broken', OVC:'Overcast', VV:'Vert. Visibility' };
+function skyLayerHtml(c) {
+  const label = SKY_LABELS[c.cover] || c.cover;
+  const alt   = c.base != null ? ` at ${(c.base * 100).toLocaleString()}'` : '';
+  return `<span class="sky-layer">${label} (${c.cover})${alt}</span>`;
 }
 
 function parseRawMetar(raw) {
@@ -418,6 +440,12 @@ function parseRawMetar(raw) {
   const skyRe = /\b(SKC|CLR|FEW|SCT|BKN|OVC|VV)(\d{3})?(CB|TCU)?\b/g;
   let sm;
   while ((sm = skyRe.exec(raw)) !== null) clouds.push({ cover: sm[1], base: sm[2] ? parseInt(sm[2]) : null });
+  let temp = null, dewp = null;
+  const tdM = raw.match(/\b(M?\d{2})\/(M?\d{2})\b/);
+  if (tdM) {
+    temp = tdM[1].startsWith('M') ? -parseInt(tdM[1].slice(1)) : parseInt(tdM[1]);
+    dewp = tdM[2].startsWith('M') ? -parseInt(tdM[2].slice(1)) : parseInt(tdM[2]);
+  }
   const altM = raw.match(/\bA(\d{4})\b/);
   const altimeter = altM ? altM[1].slice(0,2) + '.' + altM[1].slice(2) : null;
   const obsM = raw.match(/\b(\d{2})(\d{2})(\d{2})Z\b/);
@@ -427,7 +455,7 @@ function parseRawMetar(raw) {
     if (utc > now + 12*3600000) utc.setUTCMonth(utc.getUTCMonth()-1);
     return { zuluStr: `${obsM[2]}${obsM[3]}Z`, localStr: fmtTime(utc, { hour:'2-digit', minute:'2-digit', timeZoneName:'short' }) };
   })() : null;
-  return { wind, visibility, clouds, altimeter, obsTime, flightCat: calcFlightCat(clouds, visibility) };
+  return { wind, visibility, clouds, temp, dewp, altimeter, obsTime, raw, flightCat: calcFlightCat(clouds, visibility) };
 }
 
 function calcFlightCat(clouds, visibility) {
@@ -451,9 +479,11 @@ function renderWxCard(role, metar, loading, errMsg) {
   if (!metar)  { el.className = 'wx-body empty'; el.innerHTML = 'Enter airport above'; return; }
 
   const wind = metar.wind;
-  let ceilStr = 'CLR';
-  for (const c of metar.clouds)
-    if ((c.cover === 'BKN' || c.cover === 'OVC' || c.cover === 'VV') && c.base !== null) { ceilStr = `${c.cover} ${c.base * 100}FT`; break; }
+
+  // Sky layers
+  const skyHtml = metar.clouds && metar.clouds.length
+    ? metar.clouds.map(skyLayerHtml).join('')
+    : '<span style="color:var(--text-dim);font-size:13px">N/A</span>';
 
   // Runway diagram — use confirmed runway from ATIS if available
   const confirmedRwy = s.job?.status === 'complete' ? (s.job?.parsed?.runway ?? null) : null;
@@ -472,22 +502,77 @@ function renderWxCard(role, metar, loading, errMsg) {
   }
   const layout = airportLayoutSvg(s.icao, activeH);
 
+  // ATIS widget (embedded at top of card)
+  const atisHtml = atisWidgetHtml({
+    job:         s.job,
+    stationType: s.stationType,
+    flightCat:   metar.flightCat ?? null,
+    onFetch:     `fetchAtis('${role}')`,
+  });
+
+  const tempStr = metar.temp != null ? `${metar.temp}°C` : 'N/A';
+  const dewpStr = metar.dewp != null ? `${metar.dewp}°C` : 'N/A';
+  const visStr  = metar.visibility ? metar.visibility + ' SM' : 'N/A';
+
   el.className = 'wx-body';
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-      <div><div class="wx-icao">${s.icao}</div><div class="wx-name">${s.info?.name || ''}${s.info?.city ? ' · ' + s.info.city : ''}</div></div>
-      ${metar.flightCat ? `<span class="flight-cat ${metar.flightCat}">${metar.flightCat}</span>` : ''}
+    <div class="wx-icao">${s.icao}</div>
+    <div class="wx-name">${s.info?.name || ''}${s.info?.city ? `<br><span style="font-weight:400">${s.info.city}</span>` : ''}</div>
+    ${atisHtml}
+    <div class="info-table" style="margin-top:12px">
+      <div class="info-row">
+        <div class="info-cell full">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
+            <div>${metar.flightCat ? `<span class="flight-cat ${metar.flightCat}">${metar.flightCat}</span>` : ''}</div>
+            <div style="text-align:right">
+              <div class="data-label" style="margin-bottom:4px">WIND</div>
+              ${windHtml(wind)}
+            </div>
+          </div>
+          ${metar.obsTime ? `<div style="font-size:11px;color:var(--text-dim);letter-spacing:0.5px">${metar.obsTime.zuluStr} | ${metar.obsTime.localStr}</div>` : ''}
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-cell">
+          <div class="data-label">VISIBILITY</div>
+          <span class="metar-val">${visStr}</span>
+        </div>
+        <div class="info-cell">
+          <div class="data-label">SKY</div>
+          <div class="sky-layers">${skyHtml}</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-cell">
+          <div class="data-label">TEMP</div>
+          <span class="metar-val">${tempStr}</span>
+        </div>
+        <div class="info-cell">
+          <div class="data-label">DEWPOINT</div>
+          <span class="metar-val" style="color:var(--text-dim)">${dewpStr}</span>
+        </div>
+        <div class="info-cell">
+          <div class="data-label">ALTIMETER</div>
+          <span class="altimeter-value">A${metar.altimeter || 'N/A'}</span>
+        </div>
+      </div>
+      ${(viz || layout) ? `
+      <div class="info-row">
+        <div class="info-cell full">
+          <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:nowrap">
+            ${viz || ''}
+            ${layout ? `<div style="flex:0 0 auto">
+              <div class="data-label" style="margin-bottom:4px">AIRPORT LAYOUT</div>
+              ${layout}
+              <a href="https://www.airnav.com/airport/${s.icao}" target="_blank" rel="noopener"
+                 style="font-size:10px;color:var(--accent);letter-spacing:.5px;text-decoration:none;display:block;margin-top:4px">
+                ↗ Official Diagram</a>
+            </div>` : ''}
+          </div>
+        </div>
+      </div>` : ''}
     </div>
-    <div class="data-label">WIND</div>
-    ${windHtml(wind)}
-    <div class="wx-row" style="margin-top:6px"><span class="wx-label">VISIBILITY</span><span class="wx-val">${metar.visibility ? metar.visibility + ' SM' : 'N/A'}</span></div>
-    <div class="wx-row"><span class="wx-label">CEILING</span><span class="wx-val">${ceilStr}</span></div>
-    <div class="wx-row"><span class="wx-label">ALTIMETER</span><span class="wx-val">${metar.altimeter ? 'A' + metar.altimeter : 'N/A'}</span></div>
-    ${metar.obsTime ? `<div class="wx-time">${metar.obsTime.zuluStr} | ${metar.obsTime.localStr}</div>` : ''}
-    ${viz || layout ? `<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      ${viz}
-      ${layout ? `<div><div class="data-label">AIRPORT LAYOUT</div>${layout}</div>` : ''}
-    </div>` : ''}`;
+    ${metar.raw ? `<div class="raw-text-label">RAW METAR</div><div class="raw-text-block">${metar.raw}</div>` : ''}`;
 }
 
 // ── ATIS station type + cache ─────────────────────────────────────────────────
@@ -511,18 +596,10 @@ async function checkAtisCache(role, icao) {
   renderAtisSection(role);
 }
 
-// ── ATIS inline section renderer (uses shared atis-widget.js) ─────────────────
+// ── ATIS section renderer — re-renders the full card so ATIS is always inline ──
 function renderAtisSection(role) {
-  const el = document.getElementById(`${role}-atis`);
-  const s  = state[role];
-  if (!s.icao) { el.style.display = 'none'; return; }
-  el.style.display = '';
-  el.innerHTML = atisWidgetHtml({
-    job:         s.job,
-    stationType: s.stationType,
-    flightCat:   s.metar?.flightCat ?? null,
-    onFetch:     `fetchAtis('${role}')`,
-  });
+  const s = state[role];
+  if (s.metar) renderWxCard(role, s.metar, false);
 }
 
 // Periodic re-render while a job is active (keeps elapsed timer ticking)
@@ -590,8 +667,6 @@ function subscribeToJob(role, jobId) {
       const row = payload.new;
       state[role].job = { status: row.status, parsed: row.parsed, transcription: row.transcription, audioUrl: row.audio_url, fetchedAt: row.completed_at, error: row.error_msg };
       renderAtisSection(role);
-      // Re-render wx card so confirmed runway appears in the diagram
-      if (row.status === 'complete' && state[role].metar) renderWxCard(role, state[role].metar, false);
       if (row.status === 'complete' || row.status === 'error') ch.unsubscribe();
     }).subscribe();
 }
