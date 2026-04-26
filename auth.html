@@ -58,6 +58,7 @@
       font-family:inherit; font-size:13px; outline:none; transition:border-color 0.2s;
     }
     input:focus { border-color:var(--accent); }
+    input.invalid { border-color:var(--red); }
     input::placeholder { color:var(--text-dim); }
 
     .btn-primary {
@@ -138,7 +139,8 @@
       </div>
       <div class="field">
         <label>MOBILE PHONE <span style="font-weight:400;letter-spacing:0">(for SMS alerts)</span></label>
-        <input type="tel" id="su-phone" placeholder="+1 (555) 123-4567" autocomplete="tel">
+        <input type="tel" id="su-phone" placeholder="(555) 123-4567" autocomplete="tel-national"
+          maxlength="14" oninput="formatPhone(this)" onblur="validatePhone(this)">
       </div>
       <div class="terms-row">
         <input type="checkbox" id="su-terms" onchange="document.getElementById('su-btn').disabled = !this.checked">
@@ -177,6 +179,28 @@ sb.auth.getSession().then(({ data: { session } }) => {
   if (session) window.location.href = 'account.html';
 });
 
+function formatPhone(input) {
+  const digits = input.value.replace(/\D/g, '').slice(0, 10);
+  let out = '';
+  if (digits.length > 0) out = '(' + digits.slice(0, 3);
+  if (digits.length >= 4) out += ') ' + digits.slice(3, 6);
+  if (digits.length >= 7) out += '-' + digits.slice(6, 10);
+  input.value = out;
+  input.classList.toggle('invalid', digits.length > 0 && digits.length < 10);
+}
+
+function validatePhone(input) {
+  const digits = input.value.replace(/\D/g, '');
+  input.classList.toggle('invalid', digits.length > 0 && digits.length !== 10);
+}
+
+function phoneToE164(formatted) {
+  const digits = formatted.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits[0] === '1') return `+${digits}`;
+  return formatted;
+}
+
 function showTab(tab) {
   document.querySelectorAll('.tab').forEach((t, i) => {
     t.classList.toggle('active', ['signin','signup','forgot'].indexOf(tab) === i);
@@ -208,14 +232,17 @@ async function signIn() {
 }
 
 async function signUp() {
-  const email  = document.getElementById('su-email').value.trim();
-  const pass   = document.getElementById('su-pass').value;
-  const pass2  = document.getElementById('su-pass2').value;
-  const phone  = document.getElementById('su-phone').value.trim();
+  const email    = document.getElementById('su-email').value.trim();
+  const pass     = document.getElementById('su-pass').value;
+  const pass2    = document.getElementById('su-pass2').value;
+  const rawPhone = document.getElementById('su-phone').value.trim();
+  const phoneDigits = rawPhone.replace(/\D/g, '');
   if (!document.getElementById('su-terms').checked) return setMsg('su-msg', 'You must accept the terms to create an account.', 'err');
   if (!email || !pass) return setMsg('su-msg', 'Please fill in all fields.', 'err');
   if (pass !== pass2)  return setMsg('su-msg', 'Passwords do not match.', 'err');
   if (pass.length < 8) return setMsg('su-msg', 'Password must be at least 8 characters.', 'err');
+  if (phoneDigits.length > 0 && phoneDigits.length !== 10) return setMsg('su-msg', 'Phone number must be 10 digits.', 'err');
+  const phone = phoneDigits.length === 10 ? phoneToE164(rawPhone) : '';
 
   const btn = document.getElementById('su-btn');
   btn.disabled = true; btn.textContent = 'CREATING ACCOUNT…';

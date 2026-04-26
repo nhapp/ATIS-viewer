@@ -100,6 +100,7 @@
     }
     input[type=email]:read-only { opacity:0.5; cursor:default; }
     input[type=tel]:focus { border-color:var(--accent); }
+    input[type=tel].invalid { border-color:var(--red); }
     input::placeholder { color:var(--text-dim); }
 
     /* Transactions */
@@ -150,7 +151,9 @@
       <button class="btn-outline" id="add-credits-btn" onclick="showCardForm()">ADD CREDITS</button>
 
       <div id="card-section">
-        <div id="card-element"></div>
+        <form id="payment-form" autocomplete="on" onsubmit="return false">
+          <div id="card-element"></div>
+        </form>
         <button class="btn-primary" id="pay-btn" onclick="confirmPayment()">PAY <span id="pay-amount"></span></button>
       </div>
       <div class="msg" id="pay-msg"></div>
@@ -165,10 +168,23 @@
       </div>
       <div class="field">
         <label>MOBILE PHONE <span style="font-weight:400;letter-spacing:0">(for SMS alerts)</span></label>
-        <input type="tel" id="profile-phone" placeholder="+1 (555) 123-4567">
+        <input type="tel" id="profile-phone" placeholder="(555) 123-4567"
+          autocomplete="tel-national" maxlength="14"
+          oninput="formatPhone(this)" onblur="validatePhone(this)">
       </div>
       <button class="btn-outline" onclick="saveProfile()">SAVE CHANGES</button>
       <div class="msg" id="profile-msg"></div>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="card-title" style="margin-bottom:12px">TEST SMS</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="sms-test-icao" placeholder="ICAO (e.g. KSNS)"
+            style="width:140px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:6px;font-family:inherit;font-size:13px;outline:none;text-transform:uppercase"
+            oninput="this.value=this.value.toUpperCase()">
+          <button class="btn-outline" id="sms-test-btn" onclick="sendTestSms()">SEND TEST</button>
+        </div>
+        <div class="msg" id="sms-test-msg"></div>
+      </div>
     </div>
 
   </div>
@@ -186,7 +202,7 @@
 const SB_URL   = 'https://zkilbgilzoxlxbyzyqgn.supabase.co';
 const SB_KEY   = 'sb_publishable_c4O8q_kirKjnIViQ-P6vag_SeKEL4Pj';
 const EDGE_URL = `${SB_URL}/functions/v1`;
-const STRIPE_PK = 'pk_live_51TKW9VQRDtalg6nesI10OgclHNQQG6du3kE7o59dCO3OWhREDHUhI5rm2AwmgnlsneYJZjcGoGmZ9U1tKRw9hjIH005VIU3X7z';
+const STRIPE_PK = 'pk_live_51TKW9VQRDtalg6neTQP6AIU7kKcMmiuVzPeW9uxzS6XFN23oIoUXj02eJGMuKhwgP8uSkAqQKdIVXrYEPHPBVhy200pnweUyiI';
 
 const sb     = window.supabase.createClient(SB_URL, SB_KEY);
 const stripe = Stripe(STRIPE_PK);
@@ -219,12 +235,45 @@ async function signOut() {
 async function loadProfile() {
   const { data } = await sb.from('user_profiles').select('phone, balance_cents').eq('id', session.user.id).maybeSingle();
   if (!data) return;
-  document.getElementById('profile-phone').value = data.phone ?? '';
+  const phoneInput = document.getElementById('profile-phone');
+  phoneInput.value = data.phone ?? '';
+  if (data.phone) formatPhone(phoneInput);
   updateBalanceDisplay(data.balance_cents ?? 0);
 }
 
+// ── Phone formatting ──────────────────────────────────────────────────────────
+function formatPhone(input) {
+  const digits = input.value.replace(/\D/g, '').slice(0, 10);
+  let out = '';
+  if (digits.length > 0) out = '(' + digits.slice(0, 3);
+  if (digits.length >= 4) out += ') ' + digits.slice(3, 6);
+  if (digits.length >= 7) out += '-' + digits.slice(6, 10);
+  input.value = out;
+  input.classList.toggle('invalid', digits.length > 0 && digits.length < 10);
+}
+
+function validatePhone(input) {
+  const digits = input.value.replace(/\D/g, '');
+  input.classList.toggle('invalid', digits.length > 0 && digits.length !== 10);
+}
+
+function phoneToE164(formatted) {
+  const digits = formatted.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits[0] === '1') return `+${digits}`;
+  return formatted;
+}
+
 async function saveProfile() {
-  const phone = document.getElementById('profile-phone').value.trim();
+  const rawPhone = document.getElementById('profile-phone').value.trim();
+  const digits   = rawPhone.replace(/\D/g, '');
+  if (digits.length > 0 && digits.length !== 10) {
+    const msg = document.getElementById('profile-msg');
+    msg.textContent = 'Phone number must be 10 digits.';
+    msg.className = 'msg err';
+    return;
+  }
+  const phone = digits.length === 10 ? phoneToE164(rawPhone) : '';
   const { error } = await sb.from('user_profiles').update({ phone }).eq('id', session.user.id);
   const msg = document.getElementById('profile-msg');
   if (error) { msg.textContent = error.message; msg.className = 'msg err'; }
@@ -263,6 +312,11 @@ async function confirmPayment() {
   btn.disabled = true; btn.textContent = 'PROCESSING…';
 
   try {
+    // Force a server-side token refresh so the JWT is never stale
+    const { data: refreshData, error: refreshErr } = await sb.auth.refreshSession();
+    if (refreshErr || !refreshData.session) { window.location.href = 'auth.html'; return; }
+    session = refreshData.session;
+
     // Create PaymentIntent server-side
     const res = await fetch(`${EDGE_URL}/create-payment-intent`, {
       method: 'POST',
@@ -270,7 +324,7 @@ async function confirmPayment() {
       body: JSON.stringify({ amount_cents: selectedCents }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`);
 
     // Confirm card payment
     const { error: stripeErr } = await stripe.confirmCardPayment(data.client_secret, {
@@ -297,6 +351,37 @@ async function confirmPayment() {
   } finally {
     btn.disabled = false;
     btn.textContent = `PAY $${(selectedCents / 100).toFixed(2)}`;
+  }
+}
+
+// ── SMS Test ──────────────────────────────────────────────────────────────────
+async function sendTestSms() {
+  const icao  = document.getElementById('sms-test-icao').value.trim().toUpperCase();
+  const phone = document.getElementById('profile-phone').value.trim();
+  const msg   = document.getElementById('sms-test-msg');
+  const btn   = document.getElementById('sms-test-btn');
+
+  if (!icao)  { msg.textContent = 'Enter an airport ICAO code.'; msg.className = 'msg err'; return; }
+  if (!phone) { msg.textContent = 'Save a mobile number in your profile first.'; msg.className = 'msg err'; return; }
+
+  btn.disabled = true; btn.textContent = 'SENDING…';
+  msg.className = 'msg';
+
+  try {
+    const res  = await fetch(`${EDGE_URL}/sms-test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
+      body: JSON.stringify({ icao, phone }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    msg.textContent = `✅ Sent to ${data.to}: "${data.body}"`;
+    msg.className = 'msg ok';
+  } catch (err) {
+    msg.textContent = `⚠ ${err.message}`;
+    msg.className = 'msg err';
+  } finally {
+    btn.disabled = false; btn.textContent = 'SEND TEST';
   }
 }
 

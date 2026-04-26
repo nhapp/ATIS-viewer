@@ -80,12 +80,15 @@ serve(async (req) => {
     })
   }
 
-  // 3. Dedup: return existing in-progress job instead of starting another call
+  // 3. Dedup: return existing in-progress job instead of starting another call.
+  //    Ignore jobs older than 5 minutes — they're zombie calls Twilio already abandoned.
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
   const { data: running } = await supabase
     .from('atis_jobs')
     .select('id, status')
     .eq('icao', icaoUpper)
     .in('status', ['pending', 'calling', 'transcribing'])
+    .gt('created_at', fiveMinAgo)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -128,6 +131,8 @@ serve(async (req) => {
     StatusCallback:       webhookUrl,
     StatusCallbackMethod: 'POST',
     StatusCallbackEvent:  'completed',
+    Timeout:   '30',   // ring timeout: give up if no answer in 30s
+    TimeLimit: '120',  // hard call cap: hang up after 2 minutes regardless
   })
 
   const resp = await fetch(
